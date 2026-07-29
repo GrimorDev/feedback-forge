@@ -1,4 +1,4 @@
-import type { Category, Feedback, Project, Source, Status } from "../types";
+import type { Category, Feedback, Integration, Project, Source, Status } from "../types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 const PROJECT_SLUG = import.meta.env.VITE_PROJECT_SLUG ?? "orbit-chat";
@@ -48,6 +48,16 @@ export type BoardResponse = {
   feedbacks: Feedback[];
 };
 
+export type ProjectSettingsResponse = {
+  project: Project;
+  integrations: Integration[];
+  instructions: {
+    discordWebhookUrl: string;
+    githubWebhookUrl: string;
+    widgetSnippet: string;
+  };
+};
+
 export async function fetchSession() {
   return apiFetch<SessionResponse>("/api/v1/auth/me");
 }
@@ -65,6 +75,29 @@ export async function fetchAdminFeedbacks(adminKey?: string, query?: { status?: 
   if (query?.status && query.status !== "ALL") params.set("status", query.status);
   if (query?.q) params.set("q", query.q);
   return apiFetch<{ feedbacks: Feedback[] }>(`/api/v1/admin/feedbacks?${params.toString()}`, {}, { adminKey });
+}
+
+export async function fetchProjectSettings(adminKey?: string) {
+  return apiFetch<ProjectSettingsResponse>(`/api/v1/admin/projects/${PROJECT_SLUG}/settings`, {}, { adminKey });
+}
+
+export async function updateProjectSettings(
+  input: Partial<Pick<Project, "name" | "description" | "customDomain" | "publicRoadmap" | "requireLoginToVote" | "moderatorDiscordIds">>,
+  adminKey?: string
+) {
+  return apiFetch<{ project: Project }>(
+    `/api/v1/admin/projects/${PROJECT_SLUG}/settings`,
+    { method: "PATCH", body: JSON.stringify(input) },
+    { adminKey }
+  );
+}
+
+export async function updateIntegration(provider: Source, input: { enabled: boolean; config: Record<string, unknown> }, adminKey?: string) {
+  return apiFetch<{ integration: Integration }>(
+    `/api/v1/admin/projects/${PROJECT_SLUG}/integrations/${provider}`,
+    { method: "PUT", body: JSON.stringify(input) },
+    { adminKey }
+  );
 }
 
 export async function updateAdminFeedback(id: string, patch: Partial<Pick<Feedback, "status" | "priority" | "category" | "tags">>, adminKey?: string) {

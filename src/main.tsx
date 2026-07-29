@@ -38,11 +38,15 @@ import {
   fetchChangelog,
   fetchAdminFeedbacks,
   fetchPublicBoard,
+  fetchProjectSettings,
   fetchSession,
   logout,
   mergeFeedback,
+  ProjectSettingsResponse,
   SessionResponse,
   updateAdminFeedback,
+  updateIntegration,
+  updateProjectSettings,
   voteFeedback
 } from "./lib/api";
 import { adminStatuses, categoryLabels, compactDate, roadmapStatuses, statusLabels } from "./lib/store";
@@ -269,9 +273,14 @@ function App() {
         ) : view === "changelog" ? (
           <ChangelogView feedbacks={feedbacks} isLoading={isLoading} error={error} />
         ) : view === "integrations" ? (
-          <IntegrationsView />
+          <IntegrationsView adminKey={adminKey || undefined} />
         ) : view === "settings" ? (
-          <SettingsView project={project} session={session} />
+          <SettingsView
+            project={project}
+            session={session}
+            adminKey={adminKey || undefined}
+            onProjectSaved={setProject}
+          />
         ) : (
           <Portal
             projectDescription={project?.description ?? "Publiczna roadmapa społeczności."}
@@ -714,8 +723,95 @@ function ChangelogView({
   );
 }
 
-function IntegrationsView() {
-  const widgetSnippet = `<script async src="https://twoja-domena.pl/widget.js" data-project="${PROJECT_SLUG}"></script>`;
+function useAdminProjectSettings(adminKey?: string) {
+  const [settings, setSettings] = useState<ProjectSettingsResponse | null>(null);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchProjectSettings(adminKey)
+      .then((data) => {
+        if (isMounted) {
+          setSettings(data);
+          setSettingsError(null);
+        }
+      })
+      .catch((caught) => {
+        if (isMounted) setSettingsError(caught instanceof Error ? caught.message : "Nie udało się pobrać ustawień");
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [adminKey]);
+
+  return { settings, settingsError, setSettings };
+}
+
+function IntegrationsView({ adminKey }: { adminKey?: string }) {
+  const { settings, settingsError, setSettings } = useAdminProjectSettings(adminKey);
+  const discordConfig = settings?.integrations.find((item) => item.provider === "DISCORD")?.config ?? {};
+  const githubConfig = settings?.integrations.find((item) => item.provider === "GITHUB")?.config ?? {};
+  const widgetSnippet =
+    settings?.instructions.widgetSnippet ??
+    `<script async src="${window.location.origin}/widget.js" data-project="${PROJECT_SLUG}"></script>`;
+  const discordWebhookUrl = settings?.instructions.discordWebhookUrl ?? `${window.location.origin}/api/v1/webhooks/discord/suggest`;
+  const githubWebhookUrl = settings?.instructions.githubWebhookUrl ?? `${window.location.origin}/api/v1/webhooks/github/issues`;
+  const [discordChannelId, setDiscordChannelId] = useState("");
+  const [githubRepository, setGithubRepository] = useState("");
+  const [saveState, setSaveState] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDiscordChannelId(String(discordConfig.channelId ?? ""));
+    setGithubRepository(String(githubConfig.repository ?? ""));
+  }, [discordConfig.channelId, githubConfig.repository]);
+
+  const copyText = async (text: string, message: string) => {
+    await navigator.clipboard.writeText(text);
+    setSaveState(message);
+  };
+
+  const saveDiscord = async () => {
+    setSaveState("Zapisuję Discord...");
+    try {
+      const result = await updateIntegration("DISCORD", { enabled: true, config: { channelId: discordChannelId } }, adminKey);
+      setSettings((current) =>
+        current
+          ? {
+              ...current,
+              integrations: [
+                ...current.integrations.filter((item) => item.provider !== "DISCORD"),
+                result.integration
+              ]
+            }
+          : current
+      );
+      setSaveState("Zapisano konfigurację Discorda");
+    } catch (caught) {
+      setSaveState(caught instanceof Error ? caught.message : "Nie udało się zapisać Discorda");
+    }
+  };
+
+  const saveGithub = async () => {
+    setSaveState("Zapisuję GitHub...");
+    try {
+      const result = await updateIntegration("GITHUB", { enabled: true, config: { repository: githubRepository } }, adminKey);
+      setSettings((current) =>
+        current
+          ? {
+              ...current,
+              integrations: [
+                ...current.integrations.filter((item) => item.provider !== "GITHUB"),
+                result.integration
+              ]
+            }
+          : current
+      );
+      setSaveState("Zapisano konfigurację GitHuba");
+    } catch (caught) {
+      setSaveState(caught instanceof Error ? caught.message : "Nie udało się zapisać GitHuba");
+    }
+  };
 
   return (
     <section className="contentView">
@@ -725,36 +821,98 @@ function IntegrationsView() {
           <p>Źródła, z których feedback spływa automatycznie do triage.</p>
         </div>
       </div>
+      {settingsError ? <p className="errorBanner">{settingsError}</p> : null}
+      {saveState ? <p className="successBanner">{saveState}</p> : null}
       <div className="settingsGrid">
         <article className="settingsCard">
           <h2><RadioTower size={18} /> Bot Discorda</h2>
-          <p>Dodaj bota do serwera i używaj komendy `/suggest tytuł opis`.</p>
+          <p>Bot wysyła zgłoszenia na endpoint poniżej. W Portainerze ustaw te same wartości w zmiennych środowiskowych bota.</p>
           <label>
             ID kanału zgłoszeń
-            <input placeholder="np. 123456789012345678" />
+            <input value={discordChannelId} onChange={(event) => setDiscordChannelId(event.target.value)} placeholder="np. 123456789012345678" />
           </label>
-          <button className="secondaryButton"><ExternalLink size={16} /> Instrukcja instalacji</button>
+          <code>FEEDBACK_API_URL={discordWebhookUrl}</code>
+          <code>PROJECT_SLUG={PROJECT_SLUG}</code>
+          <button className="secondaryButton" onClick={() => void saveDiscord()}><Check size={16} /> Zapisz Discord</button>
+          <button className="secondaryButton" onClick={() => void copyText(discordWebhookUrl, "Skopiowano endpoint Discorda")}><Copy size={16} /> Kopiuj endpoint</button>
         </article>
         <article className="settingsCard">
           <h2><Link2 size={18} /> Web Widget</h2>
-          <p>Wklej snippet na stronę aplikacji lub dokumentacji.</p>
+          <p>Wklej ten snippet przed `&lt;/body&gt;` na stronie aplikacji lub dokumentacji.</p>
           <code>{widgetSnippet}</code>
-          <button className="secondaryButton"><Copy size={16} /> Kopiuj snippet</button>
+          <button className="secondaryButton" onClick={() => void copyText(widgetSnippet, "Skopiowano snippet widgetu")}><Copy size={16} /> Kopiuj snippet</button>
         </article>
         <article className="settingsCard">
           <h2><GitBranch size={18} /> GitHub Sync</h2>
-          <p>Import issue jako kart feedbacku. Moduł gotowy do podpięcia tokena repozytorium.</p>
+          <p>Webhook GitHuba powinien wysyłać issue na endpoint importu. Na razie zapisujemy repozytorium do konfiguracji projektu.</p>
           <label>
             Repozytorium
-            <input placeholder="owner/repository" />
+            <input value={githubRepository} onChange={(event) => setGithubRepository(event.target.value)} placeholder="owner/repository" />
           </label>
+          <code>{githubWebhookUrl}</code>
+          <button className="secondaryButton" onClick={() => void saveGithub()}><Check size={16} /> Zapisz GitHub</button>
+          <button className="secondaryButton" onClick={() => void copyText(githubWebhookUrl, "Skopiowano endpoint GitHuba")}><Copy size={16} /> Kopiuj endpoint</button>
         </article>
       </div>
     </section>
   );
 }
 
-function SettingsView({ project, session }: { project: Project | null; session: SessionResponse | null }) {
+function SettingsView({
+  project,
+  session,
+  adminKey,
+  onProjectSaved
+}: {
+  project: Project | null;
+  session: SessionResponse | null;
+  adminKey?: string;
+  onProjectSaved: (project: Project) => void;
+}) {
+  const { settings, settingsError } = useAdminProjectSettings(adminKey);
+  const currentProject = settings?.project ?? project;
+  const [name, setName] = useState(currentProject?.name ?? "Orbit Chat");
+  const [description, setDescription] = useState(currentProject?.description ?? "");
+  const [customDomain, setCustomDomain] = useState(currentProject?.customDomain ?? "");
+  const [moderatorDiscordIds, setModeratorDiscordIds] = useState((currentProject?.moderatorDiscordIds ?? []).join(", "));
+  const [publicRoadmap, setPublicRoadmap] = useState(currentProject?.publicRoadmap ?? true);
+  const [requireLoginToVote, setRequireLoginToVote] = useState(currentProject?.requireLoginToVote ?? false);
+  const [saveState, setSaveState] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!currentProject) return;
+    setName(currentProject.name);
+    setDescription(currentProject.description ?? "");
+    setCustomDomain(currentProject.customDomain ?? "");
+    setModeratorDiscordIds((currentProject.moderatorDiscordIds ?? []).join(", "));
+    setPublicRoadmap(currentProject.publicRoadmap ?? true);
+    setRequireLoginToVote(currentProject.requireLoginToVote ?? false);
+  }, [currentProject?.id, currentProject?.updatedAt]);
+
+  const saveSettings = async () => {
+    setSaveState("Zapisuję ustawienia...");
+    try {
+      const result = await updateProjectSettings(
+        {
+          name,
+          description,
+          customDomain,
+          moderatorDiscordIds: moderatorDiscordIds
+            .split(",")
+            .map((id) => id.trim())
+            .filter(Boolean),
+          publicRoadmap,
+          requireLoginToVote
+        },
+        adminKey
+      );
+      onProjectSaved(result.project);
+      setSaveState("Zapisano ustawienia projektu");
+    } catch (caught) {
+      setSaveState(caught instanceof Error ? caught.message : "Nie udało się zapisać ustawień");
+    }
+  };
+
   return (
     <section className="contentView">
       <div className="viewHeader">
@@ -762,43 +920,46 @@ function SettingsView({ project, session }: { project: Project | null; session: 
           <h1>Ustawienia</h1>
           <p>Konfiguracja projektu, domeny, zespołu i widoczności roadmapy.</p>
         </div>
+        <button className="primaryButton" onClick={() => void saveSettings()}><Check size={16} /> Zapisz zmiany</button>
       </div>
+      {settingsError ? <p className="errorBanner">{settingsError}</p> : null}
+      {saveState ? <p className="successBanner">{saveState}</p> : null}
       <div className="settingsGrid">
         <article className="settingsCard">
           <h2>Ogólne</h2>
           <label>
             Nazwa projektu
-            <input defaultValue={project?.name ?? "Orbit Chat"} />
+            <input value={name} onChange={(event) => setName(event.target.value)} />
           </label>
           <label>
             Opis
-            <textarea defaultValue={project?.description ?? ""} />
+            <textarea value={description} onChange={(event) => setDescription(event.target.value)} />
           </label>
         </article>
         <article className="settingsCard">
           <h2>Własna domena</h2>
           <label>
             Domena
-            <input placeholder="feedback.twojadomena.pl" />
+            <input value={customDomain} onChange={(event) => setCustomDomain(event.target.value)} placeholder="feedback.twojadomena.pl" />
           </label>
-          <p>Po podpięciu DNS ustaw `PUBLIC_BASE_URL` i redirect Discord OAuth na tę domenę.</p>
+          <p>Po podpięciu DNS ustaw `PUBLIC_BASE_URL` i redirect Discord OAuth na tę domenę, a potem zapisz tutaj sam host.</p>
         </article>
         <article className="settingsCard">
           <h2>Uprawnienia / Zespół</h2>
           <p>Aktualny admin: {session?.user?.name ?? "Brak sesji"}.</p>
           <label>
             Discord ID moderatorów
-            <input placeholder="123...,456..." />
+            <input value={moderatorDiscordIds} onChange={(event) => setModeratorDiscordIds(event.target.value)} placeholder="123...,456..." />
           </label>
         </article>
         <article className="settingsCard">
           <h2>Prywatność</h2>
           <label className="toggleRow">
-            <input type="checkbox" defaultChecked />
+            <input type="checkbox" checked={publicRoadmap} onChange={(event) => setPublicRoadmap(event.target.checked)} />
             Roadmapa publiczna
           </label>
           <label className="toggleRow">
-            <input type="checkbox" />
+            <input type="checkbox" checked={requireLoginToVote} onChange={(event) => setRequireLoginToVote(event.target.checked)} />
             Wymagaj logowania do głosowania
           </label>
         </article>

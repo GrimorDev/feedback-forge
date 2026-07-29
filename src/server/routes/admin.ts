@@ -1,7 +1,16 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { Prisma } from "@prisma/client";
 import { getSessionUser, isAdminUser } from "../auth.js";
 import { ApiError } from "../errors.js";
-import { adminFeedbackQuerySchema, createCommentSchema, mergeFeedbackSchema, updateFeedbackSchema } from "../schemas.js";
+import {
+  adminFeedbackQuerySchema,
+  createCommentSchema,
+  mergeFeedbackSchema,
+  sourceSchema,
+  updateFeedbackSchema,
+  updateIntegrationSchema,
+  updateProjectSettingsSchema
+} from "../schemas.js";
 import { config } from "../config.js";
 import { createCompletedNotification, getOrCreateMember } from "../services.js";
 import { prisma } from "../prisma.js";
@@ -23,6 +32,79 @@ async function requireAdmin(request: FastifyRequest, _reply: FastifyReply) {
 
 export async function registerAdminRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAdmin);
+
+  app.get("/api/v1/admin/projects/:slug/settings", async (request) => {
+    const params = request.params as { slug: string };
+    const project = await prisma.project.findUnique({
+      where: { slug: params.slug },
+      include: {
+        integrations: {
+          orderBy: { provider: "asc" }
+        }
+      }
+    });
+
+    if (!project) throw new ApiError(404, "Project not found");
+
+    return {
+      project,
+      integrations: project.integrations,
+      instructions: {
+        discordWebhookUrl: `${config.publicBaseUrl}/api/v1/webhooks/discord/suggest`,
+        githubWebhookUrl: `${config.publicBaseUrl}/api/v1/webhooks/github/issues`,
+        widgetSnippet: `<script async src="${config.publicBaseUrl}/widget.js" data-project="${project.slug}"></script>`
+      }
+    };
+  });
+
+  app.patch("/api/v1/admin/projects/:slug/settings", async (request) => {
+    const params = request.params as { slug: string };
+    const body = updateProjectSettingsSchema.parse(request.body);
+    const customDomain = body.customDomain === undefined ? undefined : body.customDomain?.trim() || null;
+
+    const project = await prisma.project.update({
+      where: { slug: params.slug },
+      data: {
+        ...body,
+        description: body.description === undefined ? undefined : body.description,
+        customDomain,
+        moderatorDiscordIds: body.moderatorDiscordIds?.map((id) => id.trim()).filter(Boolean)
+      }
+    });
+
+    return { project };
+  });
+
+  app.put("/api/v1/admin/projects/:slug/integrations/:provider", async (request) => {
+    const params = request.params as { slug: string; provider: string };
+    const provider = sourceSchema.parse(params.provider);
+    const body = updateIntegrationSchema.parse(request.body);
+    const project = await prisma.project.findUnique({ where: { slug: params.slug } });
+
+    if (!project) throw new ApiError(404, "Project not found");
+    const integrationConfig = body.config as Prisma.InputJsonValue;
+
+    const integration = await prisma.integration.upsert({
+      where: {
+        projectId_provider: {
+          projectId: project.id,
+          provider
+        }
+      },
+      create: {
+        projectId: project.id,
+        provider,
+        enabled: body.enabled,
+        config: integrationConfig
+      },
+      update: {
+        enabled: body.enabled,
+        config: integrationConfig
+      }
+    });
+
+    return { integration };
+  });
 
   app.get("/api/v1/admin/feedbacks", async (request) => {
     const query = adminFeedbackQuerySchema.parse(request.query);

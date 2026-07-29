@@ -1,0 +1,3 @@
+ALTER TABLE "Project" ADD COLUMN "publicRoadmap" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "Project" ADD COLUMN "requireLoginToVote" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Project" ADD COLUMN "moderatorDiscordIds" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];

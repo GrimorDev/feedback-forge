@@ -125,6 +125,7 @@ textarea:focus-visible {
 .statusPill,
 .timelineItem,
 .settingsCard h2,
+.primaryButton,
 .secondaryButton,
 .dangerButton,
 .votes,
@@ -587,6 +588,17 @@ textarea:focus-visible {
   background: color-mix(in srgb, var(--primary) 12%, var(--surface-strong));
   border-color: color-mix(in srgb, var(--primary) 38%, var(--border));
   color: color-mix(in srgb, var(--primary-strong) 72%, var(--text));
+}
+
+.successBanner {
+  background: color-mix(in srgb, var(--primary) 14%, var(--surface-strong));
+  border: 1px solid color-mix(in srgb, var(--primary) 42%, var(--border));
+  border-radius: var(--radius);
+  color: var(--primary-strong);
+  font-size: 13px;
+  font-weight: 900;
+  margin: 0;
+  padding: 10px 12px;
 }
 
 .kanban {
@@ -1108,6 +1120,23 @@ textarea:focus-visible {
   justify-content: center;
   min-height: 40px;
   padding: 0 13px;
+}
+
+.primaryButton {
+  background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+  border: 0;
+  border-radius: var(--radius);
+  color: #ffffff;
+  flex: 0 0 auto;
+  font-weight: 900;
+  gap: 8px;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 14px;
+}
+
+.primaryButton:hover {
+  transform: translateY(-1px);
 }
 
 .secondaryButton {

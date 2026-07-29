@@ -27,7 +27,22 @@ export type Project = {
   slug: string;
   description: string;
   customDomain?: string;
+  publicRoadmap?: boolean;
+  requireLoginToVote?: boolean;
+  moderatorDiscordIds?: string[];
   ownerId: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type Integration = {
+  id: string;
+  provider: Source;
+  config: Record<string, unknown>;
+  enabled: boolean;
+  projectId: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type Feedback = {

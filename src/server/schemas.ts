@@ -59,6 +59,20 @@ export const createCommentSchema = z.object({
   authorName: z.string().min(1).max(120).optional()
 });
 
+export const updateProjectSettingsSchema = z.object({
+  name: z.string().min(2).max(120).optional(),
+  description: z.string().max(1000).nullable().optional(),
+  customDomain: z.string().max(255).nullable().optional(),
+  publicRoadmap: z.boolean().optional(),
+  requireLoginToVote: z.boolean().optional(),
+  moderatorDiscordIds: z.array(z.string().min(1).max(120)).max(25).optional()
+});
+
+export const updateIntegrationSchema = z.object({
+  enabled: z.boolean().default(true),
+  config: z.record(z.string(), z.unknown()).default({})
+});
+
 export const discordSuggestSchema = z.object({
   projectSlug: z.string().min(1),
   title: z.string().min(5).max(180),
@@ -83,4 +97,3 @@ export const outboundEventSchema = z.object({
   recipient: z.string().min(1).max(500),
   message: z.string().min(1).max(1000)
 });
-

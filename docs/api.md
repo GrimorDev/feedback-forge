@@ -36,12 +36,39 @@ Creating feedback additionally accepts `title`, `description`, `category`, `sour
 | `PATCH` | `/api/v1/admin/feedbacks/:id` | Update status, category, tags, and priority. |
 | `POST` | `/api/v1/admin/feedbacks/:id/merge` | Merge a duplicate and move unique voters to the target. |
 | `POST` | `/api/v1/admin/feedbacks/:id/comments` | Add public reply or internal note. |
+| `GET` | `/api/v1/admin/projects/:slug/settings` | Load project settings, saved integrations, and generated setup instructions. |
+| `PATCH` | `/api/v1/admin/projects/:slug/settings` | Save project name, description, custom domain, privacy, and moderator Discord IDs. |
+| `PUT` | `/api/v1/admin/projects/:slug/integrations/:provider` | Save integration config for `DISCORD`, `WEB_WIDGET`, `GITHUB`, or `API`. |
 
 Merge payload:
 
 ```json
 {
   "duplicateId": "00000000-0000-4000-8000-000000000001"
+}
+```
+
+Project settings payload:
+
+```json
+{
+  "name": "Orbit Chat",
+  "description": "Public roadmap for the community",
+  "customDomain": "feedback.example.com",
+  "publicRoadmap": true,
+  "requireLoginToVote": false,
+  "moderatorDiscordIds": ["71820491"]
+}
+```
+
+Integration payload:
+
+```json
+{
+  "enabled": true,
+  "config": {
+    "channelId": "123456789012345678"
+  }
 }
 ```
 
