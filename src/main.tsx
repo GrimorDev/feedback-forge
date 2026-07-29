@@ -56,10 +56,10 @@ type View = "admin" | "portal" | "changelog" | "integrations" | "settings";
 const PROJECT_SLUG = import.meta.env.VITE_PROJECT_SLUG ?? "orbit-chat";
 
 function routeToView(): View {
+  if (window.location.pathname.startsWith("/admin/integrations")) return "integrations";
+  if (window.location.pathname.startsWith("/admin/settings")) return "settings";
   if (window.location.pathname.startsWith("/admin")) return "admin";
   if (window.location.pathname.startsWith("/changelog")) return "changelog";
-  if (window.location.pathname.startsWith("/integrations")) return "integrations";
-  if (window.location.pathname.startsWith("/settings")) return "settings";
   return "portal";
 }
 
@@ -68,6 +68,7 @@ function App() {
   const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [query, setQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<Status | "ALL">("ALL");
+  const [isSubmitOpen, setIsSubmitOpen] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [session, setSession] = useState<SessionResponse | null>(null);
@@ -103,8 +104,8 @@ function App() {
       admin: "/admin",
       portal: "/board",
       changelog: "/changelog",
-      integrations: "/integrations",
-      settings: "/settings"
+      integrations: "/admin/integrations",
+      settings: "/admin/settings"
     };
     const path = paths[nextView];
     window.history.pushState({}, "", path);
@@ -231,8 +232,9 @@ function App() {
 
   const projectName = project?.name ?? "Orbit Chat";
   const isAdmin = session?.isAdmin || Boolean(adminKey);
+  const isAdminView = view === "admin" || view === "integrations" || view === "settings";
 
-  if ((view === "admin" || view === "integrations" || view === "settings") && !isAdmin) {
+  if (isAdminView && !isAdmin) {
     return (
       <main className="authShell">
         <AdminGate
@@ -242,6 +244,38 @@ function App() {
           discordOAuthConfigured={session?.discordOAuthConfigured ?? false}
         />
       </main>
+    );
+  }
+
+  if (!isAdminView) {
+    return (
+      <PublicShell
+        projectName={projectName}
+        view={view}
+        setView={setView}
+        theme={theme}
+        setTheme={setTheme}
+        session={session}
+        onReportClick={() => {
+          setIsSubmitOpen(true);
+          if (view !== "portal") setView("portal");
+        }}
+      >
+        {view === "changelog" ? (
+          <ChangelogView feedbacks={feedbacks} isLoading={isLoading} error={error} />
+        ) : (
+          <Portal
+            projectDescription={project?.description ?? "Publiczna roadmapa społeczności."}
+            feedbacks={visibleFeedbacks}
+            addFeedback={addFeedback}
+            vote={vote}
+            isLoading={isLoading}
+            error={error}
+            isSubmitOpen={isSubmitOpen}
+            setIsSubmitOpen={setIsSubmitOpen}
+          />
+        )}
+      </PublicShell>
     );
   }
 
@@ -270,8 +304,6 @@ function App() {
             />
             <AdminBoard feedbacks={visibleFeedbacks} updateFeedback={updateFeedback} mergeTopDuplicate={mergeTopDuplicate} />
           </>
-        ) : view === "changelog" ? (
-          <ChangelogView feedbacks={feedbacks} isLoading={isLoading} error={error} />
         ) : view === "integrations" ? (
           <IntegrationsView adminKey={adminKey || undefined} />
         ) : view === "settings" ? (
@@ -281,17 +313,74 @@ function App() {
             adminKey={adminKey || undefined}
             onProjectSaved={setProject}
           />
-        ) : (
-          <Portal
-            projectDescription={project?.description ?? "Publiczna roadmapa społeczności."}
-            feedbacks={visibleFeedbacks}
-            addFeedback={addFeedback}
-            vote={vote}
-            isLoading={isLoading}
-            error={error}
-          />
-        )}
+        ) : null}
       </section>
+    </main>
+  );
+}
+
+function PublicShell({
+  projectName,
+  view,
+  setView,
+  theme,
+  setTheme,
+  session,
+  onReportClick,
+  children
+}: {
+  projectName: string;
+  view: View;
+  setView: (view: View) => void;
+  theme: "light" | "dark";
+  setTheme: (theme: "light" | "dark") => void;
+  session: SessionResponse | null;
+  onReportClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <main className="publicShell">
+      <header className="publicTopbar">
+        <button className="publicBrand" onClick={() => setView("portal")} aria-label="Przejdź do roadmapy">
+          <Rocket size={23} />
+          <span>
+            <strong>{projectName}</strong>
+            <small>Feedback Forge</small>
+          </span>
+        </button>
+        <nav className="publicNav" aria-label="Nawigacja publiczna">
+          <button className={view === "portal" ? "active" : ""} onClick={() => setView("portal")}>
+            Roadmapa
+          </button>
+          <button className={view === "changelog" ? "active" : ""} onClick={() => setView("changelog")}>
+            Changelog
+          </button>
+        </nav>
+        <div className="publicActions">
+          <button className="publicReportButton" onClick={onReportClick}>
+            <Plus size={16} /> Zgłoś
+          </button>
+          {session?.isAdmin ? (
+            <button className="publicAdminButton" onClick={() => setView("admin")}>
+              <KanbanSquare size={16} /> Panel admina
+            </button>
+          ) : session?.user ? (
+            <span className="publicUser">{session.user.name ?? "Konto"}</span>
+          ) : session?.discordOAuthConfigured ? (
+            <a className="publicLoginButton" href={discordLoginUrl()}>
+              <LogIn size={16} /> Zaloguj
+            </a>
+          ) : null}
+          <button
+            className="themeToggle"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            title={theme === "dark" ? "Jasny motyw" : "Ciemny motyw"}
+          >
+            {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
+          </button>
+        </div>
+      </header>
+      <section className="publicWorkspace">{children}</section>
     </main>
   );
 }
@@ -614,7 +703,9 @@ function Portal({
   addFeedback,
   vote,
   isLoading,
-  error
+  error,
+  isSubmitOpen,
+  setIsSubmitOpen
 }: {
   projectDescription: string;
   feedbacks: Feedback[];
@@ -622,6 +713,8 @@ function Portal({
   vote: (id: string) => Promise<void>;
   isLoading: boolean;
   error: string | null;
+  isSubmitOpen: boolean;
+  setIsSubmitOpen: (isOpen: boolean) => void;
 }) {
   const roadmap = feedbacks.filter((item) => roadmapStatuses.includes(item.status));
   const completed = feedbacks.filter((item) => item.status === "COMPLETED");
@@ -640,24 +733,37 @@ function Portal({
         </div>
       </div>
       {error ? <p className="errorBanner">{error}</p> : null}
-      <form className="submitBox" onSubmit={(event) => void addFeedback(event)}>
-        <input name="title" required minLength={5} placeholder="Nowa sugestia lub błąd" />
-        <textarea name="description" required minLength={10} placeholder="Co się dzieje i dlaczego to ważne?" />
-        <div>
-          <select name="category" defaultValue="FEATURE">
-            <option value="FEATURE">Feature</option>
-            <option value="BUG">Bug</option>
-            <option value="IMPROVEMENT">Performance</option>
-          </select>
-          <select name="source" defaultValue="WEB_WIDGET">
-            <option value="WEB_WIDGET">Web widget</option>
-            <option value="DISCORD">Discord</option>
-            <option value="GITHUB">GitHub</option>
-            <option value="API">API</option>
-          </select>
-          <button><Plus size={16} /> Dodaj</button>
-        </div>
-      </form>
+      {isSubmitOpen ? (
+        <form
+          className="submitBox"
+          id="submit-feedback"
+          onSubmit={(event) => {
+            void addFeedback(event);
+            setIsSubmitOpen(false);
+          }}
+        >
+          <div className="submitHeader">
+            <strong>Nowe zgłoszenie</strong>
+            <button type="button" onClick={() => setIsSubmitOpen(false)}>Zamknij</button>
+          </div>
+          <input name="title" required minLength={5} placeholder="Krótki tytuł sugestii lub błędu" />
+          <textarea name="description" required minLength={10} placeholder="Co się dzieje i dlaczego to ważne?" />
+          <div className="submitFields">
+            <select name="category" defaultValue="FEATURE">
+              <option value="FEATURE">Feature</option>
+              <option value="BUG">Bug</option>
+              <option value="IMPROVEMENT">Performance</option>
+            </select>
+            <select name="source" defaultValue="WEB_WIDGET">
+              <option value="WEB_WIDGET">Web widget</option>
+              <option value="DISCORD">Discord</option>
+              <option value="GITHUB">GitHub</option>
+              <option value="API">API</option>
+            </select>
+            <button><Plus size={16} /> Wyślij</button>
+          </div>
+        </form>
+      ) : null}
       <div className="roadmap">
         {roadmapStatuses.map((status) => (
           <div className="roadmapColumn" key={status}>

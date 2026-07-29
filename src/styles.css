@@ -108,7 +108,40 @@ textarea:focus-visible {
   min-height: 100vh;
 }
 
+.publicShell {
+  min-height: 100vh;
+}
+
+.publicTopbar {
+  align-items: center;
+  background: color-mix(in srgb, var(--surface-strong) 88%, transparent);
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(190px, 1fr) auto minmax(260px, 1fr);
+  min-height: 68px;
+  padding: 0 clamp(16px, 4vw, 44px);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.publicWorkspace {
+  margin: 0 auto;
+  max-width: 1220px;
+  padding: clamp(22px, 4vw, 46px) clamp(16px, 4vw, 44px);
+  width: 100%;
+}
+
 .brand,
+.publicBrand,
+.publicNav,
+.publicNav button,
+.publicActions,
+.publicReportButton,
+.publicAdminButton,
+.publicLoginButton,
+.publicUser,
 .sideNav button,
 .themeToggle,
 .profileButton,
@@ -134,6 +167,100 @@ textarea:focus-visible {
 .metrics span {
   align-items: center;
   display: flex;
+}
+
+.publicBrand {
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  gap: 10px;
+  justify-self: start;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.publicBrand svg {
+  color: var(--primary-strong);
+  flex: 0 0 auto;
+}
+
+.publicBrand span,
+.publicBrand strong,
+.publicBrand small {
+  display: block;
+  min-width: 0;
+}
+
+.publicBrand strong {
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.publicBrand small {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.publicNav {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  gap: 4px;
+  padding: 4px;
+}
+
+.publicNav button {
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 800;
+  min-height: 34px;
+  padding: 0 14px;
+}
+
+.publicNav button.active,
+.publicNav button:hover {
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+}
+
+.publicActions {
+  gap: 8px;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.publicReportButton,
+.publicAdminButton,
+.publicLoginButton,
+.publicUser {
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 900;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 13px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.publicReportButton {
+  background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+  border: 0;
+  color: #ffffff;
+}
+
+.publicAdminButton,
+.publicLoginButton,
+.publicUser {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
 }
 
 .appSidebar {
@@ -872,7 +999,26 @@ textarea:focus-visible {
   resize: vertical;
 }
 
-.submitBox div {
+.submitHeader {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.submitHeader strong {
+  color: var(--text);
+}
+
+.submitHeader button {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  min-height: 34px;
+  padding: 0 10px;
+}
+
+.submitFields {
   display: grid;
   gap: 10px;
   grid-template-columns: minmax(140px, 180px) minmax(140px, 180px) minmax(160px, 1fr);
@@ -1179,6 +1325,26 @@ textarea:focus-visible {
 }
 
 @media (max-width: 1040px) {
+  .publicTopbar {
+    grid-template-columns: 1fr;
+    padding-bottom: 12px;
+    padding-top: 12px;
+    position: static;
+  }
+
+  .publicNav,
+  .publicActions {
+    justify-self: stretch;
+  }
+
+  .publicNav {
+    justify-content: center;
+  }
+
+  .publicActions {
+    justify-content: flex-start;
+  }
+
   .shell {
     grid-template-columns: 1fr;
   }
@@ -1244,9 +1410,13 @@ textarea:focus-visible {
   }
 
   .toolbar,
-  .submitBox div,
+  .submitFields,
   .portalIntro {
     grid-template-columns: 1fr;
+  }
+
+  .publicActions {
+    flex-wrap: wrap;
   }
 
   .metrics {
