@@ -19,7 +19,7 @@ npm run db:generate
 npm run dev:api
 ```
 
-The API listens on `http://127.0.0.1:3000` by default. Use `ADMIN_API_KEY` for admin routes in production.
+The API listens on `http://127.0.0.1:3000` during local Node development. Use `ADMIN_API_KEY` for admin routes in production.
 
 ## Docker / Portainer
 
@@ -27,7 +27,7 @@ The API listens on `http://127.0.0.1:3000` by default. Use `ADMIN_API_KEY` for a
 2. Change `POSTGRES_PASSWORD` and `ADMIN_API_KEY`.
 3. Deploy the stack from `docker-compose.yml`.
 
-The app is exposed on `API_PORT` and serves both:
+The app is exposed on `API_PORT` (`3010` by default in Docker) and serves both:
 
 - API: `/api/v1/...`
 - frontend build: `/`
@@ -43,6 +43,12 @@ Useful checks:
 ```bash
 curl http://localhost:3000/health
 curl http://localhost:3000/api/v1/projects/orbit-chat/board
+```
+
+For the default Docker port:
+
+```bash
+curl http://localhost:3010/health
 ```
 
 ## What is included
