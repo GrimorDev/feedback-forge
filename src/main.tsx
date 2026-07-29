@@ -1180,8 +1180,8 @@ function IntegrationsView({ projectSlug, adminKey }: { projectSlug: string; admi
       </div>
       {settingsError ? <p className="errorBanner">{settingsError}</p> : null}
       {saveState ? <p className="successBanner">{saveState}</p> : null}
-      <div className="settingsGrid">
-        <article className="settingsCard">
+      <div className="integrationGrid">
+        <article className="settingsCard integrationCard integrationCardPrimary">
           <h2><RadioTower size={18} /> Bot Discorda</h2>
           <p>Gotowy skrypt `bot/discord-suggest.js` wymaga tych zmiennych w kontenerze bota. `API_BASE_URL` to adres Twojej aplikacji bez końcówki `/api`.</p>
           <label>
@@ -1198,13 +1198,13 @@ function IntegrationsView({ projectSlug, adminKey }: { projectSlug: string; admi
           <button className="secondaryButton" onClick={() => void saveDiscord()}><Check size={16} /> Zapisz Discord</button>
           <button className="secondaryButton" onClick={() => void copyText(`API_BASE_URL=${apiBaseUrl}\nPROJECT_SLUG=${projectSlug}\nDISCORD_BOT_TOKEN=\nDISCORD_CLIENT_ID=\nDISCORD_GUILD_ID=`, "Skopiowano zmienne bota Discord")}><Copy size={16} /> Kopiuj zmienne bota</button>
         </article>
-        <article className="settingsCard">
+        <article className="settingsCard integrationCard">
           <h2><Link2 size={18} /> Web Widget</h2>
           <p>Wklej ten snippet przed `&lt;/body&gt;` na stronie aplikacji lub dokumentacji.</p>
           <code>{widgetSnippet}</code>
           <button className="secondaryButton" onClick={() => void copyText(widgetSnippet, "Skopiowano snippet widgetu")}><Copy size={16} /> Kopiuj snippet</button>
         </article>
-        <article className="settingsCard">
+        <article className="settingsCard integrationCard">
           <h2><GitBranch size={18} /> GitHub Sync</h2>
           <p>Webhook GitHuba powinien wysyłać issue na endpoint importu. Na razie zapisujemy repozytorium do konfiguracji projektu.</p>
           <label>
