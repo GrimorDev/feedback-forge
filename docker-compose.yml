@@ -71,7 +71,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    profiles: ["bot"]
     depends_on:
       api:
         condition: service_healthy
@@ -79,10 +78,17 @@ services:
       NODE_ENV: production
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:-}
       DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
-      DISCORD_GUILD_ID: ${DISCORD_GUILD_ID:-}
       API_BASE_URL: http://api:3000
-      PROJECT_SLUG: ${PROJECT_SLUG:-orbit-chat}
-    command: node bot/discord-suggest.js
+    command:
+      - sh
+      - -c
+      - |
+        if [ -z "$${DISCORD_BOT_TOKEN}" ] || [ -z "$${DISCORD_CLIENT_ID}" ]; then
+          echo "Discord bot disabled: set DISCORD_BOT_TOKEN and DISCORD_CLIENT_ID"
+          sleep infinity
+        else
+          node bot/discord-suggest.js
+        fi
     restart: unless-stopped
 
 volumes:

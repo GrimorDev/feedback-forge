@@ -1397,6 +1397,32 @@ textarea:focus-visible {
   padding: 10px 12px;
 }
 
+.connectionState {
+  background: color-mix(in srgb, var(--warning) 10%, var(--surface-muted));
+  border: 1px solid color-mix(in srgb, var(--warning) 36%, var(--border));
+  border-radius: var(--radius);
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+}
+
+.connectionState.connected {
+  background: color-mix(in srgb, var(--primary) 12%, var(--surface-muted));
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
+}
+
+.connectionState strong {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.connectionState span {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .settingsCard p {
   color: var(--text-muted);
   font-size: 13px;
@@ -1414,6 +1440,7 @@ textarea:focus-visible {
 }
 
 .settingsCard input,
+.settingsCard select,
 .settingsCard textarea {
   background: var(--surface-muted);
   border: 1px solid var(--border);
@@ -1422,6 +1449,10 @@ textarea:focus-visible {
   min-height: 40px;
   padding: 10px 12px;
   width: 100%;
+}
+
+.settingsCard select {
+  appearance: none;
 }
 
 .settingsCard textarea {

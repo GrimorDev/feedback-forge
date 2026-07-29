@@ -52,6 +52,9 @@ export type ProjectSettingsResponse = {
   integrations: Integration[];
   instructions: {
     apiBaseUrl: string;
+    discordBotClientId?: string;
+    discordBotConfigured?: boolean;
+    discordBotInviteUrl?: string | null;
     discordProjectEndpoint: string;
     discordWebhookUrl: string;
     githubWebhookUrl: string;
@@ -110,6 +113,14 @@ export async function updateIntegration(projectSlug: string, provider: Source, i
   return apiFetch<{ integration: Integration }>(
     `/api/v1/admin/projects/${projectSlug}/integrations/${provider}`,
     { method: "PUT", body: JSON.stringify(input) },
+    { adminKey }
+  );
+}
+
+export async function fetchDiscordChannels(projectSlug: string, guildId: string, adminKey?: string) {
+  return apiFetch<{ channels: Array<{ id: string; name: string; type: number }> }>(
+    `/api/v1/admin/projects/${projectSlug}/discord/guilds/${guildId}/channels`,
+    {},
     { adminKey }
   );
 }

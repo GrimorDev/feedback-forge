@@ -5,7 +5,6 @@ const token = process.env.DISCORD_BOT_TOKEN;
 const clientId = process.env.DISCORD_CLIENT_ID;
 const guildId = process.env.DISCORD_GUILD_ID;
 const apiBaseUrl = process.env.API_BASE_URL ?? "http://localhost:3000";
-const projectSlug = process.env.PROJECT_SLUG ?? "orbit-chat";
 
 if (!token || !clientId) {
   throw new Error("DISCORD_BOT_TOKEN and DISCORD_CLIENT_ID are required");
@@ -49,15 +48,16 @@ client.on("interactionCreate", async (interaction) => {
   const title = interaction.options.getString("tytul", true);
   const description = interaction.options.getString("opis", true);
 
-  const response = await fetch(`${apiBaseUrl}/api/v1/projects/${projectSlug}/feedbacks/discord`, {
+  const response = await fetch(`${apiBaseUrl}/api/v1/webhooks/discord/suggest`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       title,
       description,
-      discord_user_id: interaction.user.id,
-      discord_username: interaction.user.globalName ?? interaction.user.username,
-      channel_id: interaction.channelId
+      guildId: interaction.guildId,
+      discordId: interaction.user.id,
+      authorName: interaction.user.globalName ?? interaction.user.username,
+      channelId: interaction.channelId
     })
   });
 

@@ -27,7 +27,7 @@ Admin endpoints are protected when `ADMIN_API_KEY` is set. Send either:
 | --- | --- | --- |
 | `GET` | `/api/v1/projects/:slug/board` | Public roadmap: `PLANNED`, `IN_PROGRESS`, `COMPLETED`. |
 | `POST` | `/api/v1/projects/:slug/feedback` | Create feedback from widget, Discord, GitHub, or API. |
-| `POST` | `/api/v1/projects/:slug/feedbacks/discord` | Create feedback from the Discord `/suggest` bot. |
+| `POST` | `/api/v1/projects/:slug/feedbacks/discord` | Backward-compatible project-scoped Discord feedback endpoint. |
 | `POST` | `/api/v1/feedback/:id/vote` | Toggle a vote in a transaction and update `upvotesCount`. |
 | `GET` | `/api/v1/projects/:slug/changelog` | Completed feedback sorted by `updatedAt DESC`. |
 
@@ -43,17 +43,20 @@ Public create/vote payloads can include lightweight identity fields:
 
 Creating feedback additionally accepts `title`, `description`, `category`, `source`, `tags`, and `externalUrl`.
 
-Discord bot payload:
+Central Discord bot payload (`/api/v1/webhooks/discord/suggest`):
 
 ```json
 {
+  "guildId": "987654321098765432",
   "title": "Patron-only channels",
   "description": "Grant role after payment",
-  "discord_user_id": "71820491",
-  "discord_username": "Grimor",
-  "channel_id": "123456789012345678"
+  "discordId": "71820491",
+  "authorName": "Grimor",
+  "channelId": "123456789012345678"
 }
 ```
+
+The API resolves `guildId` through the saved Discord integration config and writes the feedback to that project.
 
 Public protection:
 
@@ -77,6 +80,7 @@ Public protection:
 | `POST` | `/api/v1/admin/feedbacks/:id/comments` | Add public reply or internal note. |
 | `GET` | `/api/v1/admin/projects/:slug/settings` | Load project settings, saved integrations, and generated setup instructions. |
 | `PATCH` | `/api/v1/admin/projects/:slug/settings` | Save project name, description, custom domain, privacy, and moderator Discord IDs. |
+| `GET` | `/api/v1/admin/projects/:slug/discord/guilds/:guildId/channels` | List text channels visible to the central Discord bot for channel selection. |
 | `PUT` | `/api/v1/admin/projects/:slug/integrations/:provider` | Save integration config for `DISCORD`, `WEB_WIDGET`, `GITHUB`, or `API`. |
 
 The settings response also returns generated setup values:

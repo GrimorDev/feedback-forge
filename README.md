@@ -89,20 +89,18 @@ ADMIN_DISCORD_IDS=your_discord_user_id
 ```
 
 For temporary plain HTTP testing, set `COOKIE_SECURE=false`. For a real HTTPS domain, keep `COOKIE_SECURE=true`.
-`DISCORD_BOT_TOKEN` is required only when a project restricts roadmap access by Discord server or role.
+`DISCORD_BOT_TOKEN` runs the central SaaS bot and is also used when a project restricts roadmap access by Discord server or role.
 
 `ADMIN_API_KEY` remains available as an emergency/admin bootstrap path.
 
-## Discord Bot
+## Central Discord Bot
 
-The bot registers `/suggest` and sends feedback to the API.
+Feedback Forge runs one central Discord bot for all customer projects. Customers click "Add bot to Discord" in the admin panel, choose their server in Discord, then save the server ID and feedback channel ID in Integrations. The bot sends `guildId` to the API, and the API maps that Discord server to the correct project.
 
 ```bash
 DISCORD_BOT_TOKEN=...
 DISCORD_CLIENT_ID=...
-DISCORD_GUILD_ID=...
 API_BASE_URL=https://your-domain.example
-PROJECT_SLUG=orbit-chat
 npm run bot:discord
 ```
 

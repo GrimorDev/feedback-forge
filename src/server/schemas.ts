@@ -82,7 +82,8 @@ export const updateIntegrationSchema = z.object({
 });
 
 export const discordSuggestSchema = z.object({
-  projectSlug: z.string().min(1),
+  projectSlug: z.string().min(1).optional(),
+  guildId: z.string().min(1).max(120).optional(),
   title: z.string().min(5).max(180),
   description: z.string().min(10).max(5000),
   discordId: z.string().min(1).max(120),

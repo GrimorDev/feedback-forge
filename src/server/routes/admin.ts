@@ -150,6 +150,11 @@ export async function registerAdminRoutes(app: FastifyInstance) {
       integrations: project.integrations,
       instructions: {
         apiBaseUrl: config.publicBaseUrl,
+        discordBotClientId: config.discordClientId,
+        discordBotConfigured: Boolean(config.discordClientId && config.discordBotToken),
+        discordBotInviteUrl: config.discordClientId
+          ? `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(config.discordClientId)}&permissions=2147485696&scope=bot%20applications.commands`
+          : null,
         discordProjectEndpoint: `${config.publicBaseUrl}/api/v1/projects/${project.slug}/feedbacks/discord`,
         discordWebhookUrl: `${config.publicBaseUrl}/api/v1/webhooks/discord/suggest`,
         githubWebhookUrl: `${config.publicBaseUrl}/api/v1/webhooks/github/issues`,
@@ -177,6 +182,31 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     });
 
     return { project };
+  });
+
+  app.get("/api/v1/admin/projects/:slug/discord/guilds/:guildId/channels", async (request, reply) => {
+    const params = request.params as { slug: string; guildId: string };
+    await requireProjectAccess(request, params.slug);
+
+    if (!config.discordBotToken) {
+      return reply.status(503).send({ error: "Discord bot is not configured" });
+    }
+
+    const response = await fetch(`https://discord.com/api/v10/guilds/${params.guildId}/channels`, {
+      headers: { authorization: `Bot ${config.discordBotToken}` }
+    });
+
+    if (!response.ok) {
+      return reply.status(response.status).send({ error: "Could not load Discord channels for this server" });
+    }
+
+    const channels = (await response.json()) as Array<{ id: string; name: string; type: number }>;
+    return {
+      channels: channels
+        .filter((channel) => channel.type === 0 || channel.type === 5)
+        .map((channel) => ({ id: channel.id, name: channel.name, type: channel.type }))
+        .sort((a, b) => a.name.localeCompare(b.name))
+    };
   });
 
   app.put("/api/v1/admin/projects/:slug/integrations/:provider", async (request) => {

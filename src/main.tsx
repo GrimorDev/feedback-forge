@@ -39,6 +39,7 @@ import {
   fetchChangelog,
   fetchAdminFeedbacks,
   fetchAdminProjects,
+  fetchDiscordChannels,
   fetchPublicBoard,
   fetchProjectSettings,
   fetchSession,
@@ -1166,32 +1167,48 @@ function IntegrationsView({ projectSlug, adminKey }: { projectSlug: string; admi
   const widgetSnippet =
     settings?.instructions.widgetSnippet ??
     `<script async src="${window.location.origin}/widget.js" data-project="${projectSlug}"></script>`;
-  const apiBaseUrl = settings?.instructions.apiBaseUrl ?? window.location.origin;
-  const discordProjectEndpoint = settings?.instructions.discordProjectEndpoint ?? `${window.location.origin}/api/v1/projects/${projectSlug}/feedbacks/discord`;
-  const discordWebhookUrl = settings?.instructions.discordWebhookUrl ?? `${window.location.origin}/api/v1/webhooks/discord/suggest`;
   const githubWebhookUrl = settings?.instructions.githubWebhookUrl ?? `${window.location.origin}/api/v1/webhooks/github/issues`;
   const [discordChannelId, setDiscordChannelId] = useState("");
-  const [discordClientId, setDiscordClientId] = useState("");
   const [discordGuildId, setDiscordGuildId] = useState("");
+  const [discordChannels, setDiscordChannels] = useState<Array<{ id: string; name: string }>>([]);
+  const [discordChannelsState, setDiscordChannelsState] = useState<string | null>(null);
   const [githubRepository, setGithubRepository] = useState("");
   const [saveState, setSaveState] = useState<string | null>(null);
-  const botEnv = [
-    `API_BASE_URL=${apiBaseUrl}`,
-    `PROJECT_SLUG=${projectSlug}`,
-    "DISCORD_BOT_TOKEN=wklej_token_bota_z_Discord_Developer_Portal",
-    `DISCORD_CLIENT_ID=${discordClientId || "wklej_client_id_aplikacji"}`,
-    `DISCORD_GUILD_ID=${discordGuildId || "opcjonalnie_id_serwera"}`
-  ].join("\n");
-  const inviteUrl = discordClientId
-    ? `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(discordClientId)}&permissions=2147485696&scope=bot%20applications.commands`
-    : "";
+  const inviteUrl = settings?.instructions.discordBotInviteUrl ?? "";
+  const isDiscordConnected = Boolean(discordConfig.guildId && discordConfig.channelId);
 
   useEffect(() => {
     setDiscordChannelId(String(discordConfig.channelId ?? ""));
-    setDiscordClientId(String(discordConfig.clientId ?? ""));
     setDiscordGuildId(String(discordConfig.guildId ?? ""));
     setGithubRepository(String(githubConfig.repository ?? ""));
-  }, [discordConfig.channelId, discordConfig.clientId, discordConfig.guildId, githubConfig.repository]);
+  }, [discordConfig.channelId, discordConfig.guildId, githubConfig.repository]);
+
+  useEffect(() => {
+    const trimmedGuildId = discordGuildId.trim();
+    if (trimmedGuildId.length < 8) {
+      setDiscordChannels([]);
+      setDiscordChannelsState(null);
+      return;
+    }
+
+    let isMounted = true;
+    setDiscordChannelsState("Ładuję kanały z Discorda...");
+    fetchDiscordChannels(projectSlug, trimmedGuildId, adminKey)
+      .then((data) => {
+        if (!isMounted) return;
+        setDiscordChannels(data.channels);
+        setDiscordChannelsState(data.channels.length ? null : "Bot nie widzi kanałów tekstowych na tym serwerze.");
+      })
+      .catch((caught) => {
+        if (!isMounted) return;
+        setDiscordChannels([]);
+        setDiscordChannelsState(caught instanceof Error ? caught.message : "Nie udało się pobrać kanałów Discorda.");
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [discordGuildId, projectSlug, adminKey]);
 
   const copyText = async (text: string, message: string) => {
     await navigator.clipboard.writeText(text);
@@ -1204,7 +1221,7 @@ function IntegrationsView({ projectSlug, adminKey }: { projectSlug: string; admi
       const result = await updateIntegration(
         projectSlug,
         "DISCORD",
-        { enabled: true, config: { channelId: discordChannelId, clientId: discordClientId, guildId: discordGuildId } },
+        { enabled: true, config: { channelId: discordChannelId, guildId: discordGuildId } },
         adminKey
       );
       setSettings((current) =>
@@ -1259,41 +1276,41 @@ function IntegrationsView({ projectSlug, adminKey }: { projectSlug: string; admi
         <article className="settingsCard integrationCard integrationCardPrimary">
           <h2><RadioTower size={18} /> Bot Discorda</h2>
           <ol className="setupSteps">
-            <li><strong>1. Discord</strong><span>Utwórz aplikację, dodaj bota i skopiuj Bot Token oraz Client ID.</span></li>
-            <li><strong>2. Portainer</strong><span>Uruchom kontener bota ze zmiennymi z przycisku poniżej.</span></li>
-            <li><strong>3. Ten panel</strong><span>Wpisz ID kanału zgłoszeń i kliknij Zapisz Discord.</span></li>
+            <li><strong>1. Dodaj bota</strong><span>Kliknij przycisk i wybierz swój serwer w oknie Discorda.</span></li>
+            <li><strong>2. Powiąż serwer</strong><span>Wklej ID serwera, żeby system wiedział, do którego projektu wpinać sugestie.</span></li>
+            <li><strong>3. Wybierz kanał</strong><span>Wklej ID kanału, na którym ma działać komenda /suggest.</span></li>
           </ol>
-          <p>Gotowy skrypt `bot/discord-suggest.js` wymaga tych zmiennych w kontenerze bota. `API_BASE_URL` to adres Twojej aplikacji bez końcówki `/api`.</p>
-          <label>
-            ID kanału zgłoszeń
-            <input value={discordChannelId} onChange={(event) => setDiscordChannelId(event.target.value)} placeholder="np. 123456789012345678" />
-          </label>
-          <label>
-            Discord Client ID
-            <input value={discordClientId} onChange={(event) => setDiscordClientId(event.target.value)} placeholder="Client ID aplikacji Discord" />
-          </label>
-          <label>
-            Discord Guild ID
-            <input value={discordGuildId} onChange={(event) => setDiscordGuildId(event.target.value)} placeholder="Opcjonalnie ID serwera" />
-          </label>
+          <p>To jest centralny bot Feedback Forge. Klient nie tworzy aplikacji Discord, nie kopiuje tokenów i nie uruchamia kontenera.</p>
+          <div className={isDiscordConnected ? "connectionState connected" : "connectionState"}>
+            <strong>{isDiscordConnected ? "Discord połączony" : "Discord niepołączony"}</strong>
+            <span>{isDiscordConnected ? "Ten serwer jest przypisany do tego projektu." : "Dodaj naszego bota i zapisz serwer oraz kanał zgłoszeń."}</span>
+          </div>
           {inviteUrl ? (
-            <a className="secondaryButton" href={inviteUrl} target="_blank" rel="noreferrer">
-              <ExternalLink size={16} /> Zaproś bota na Discord
+            <a className="primaryButton" href={inviteUrl} target="_blank" rel="noreferrer">
+              <ExternalLink size={16} /> Dodaj bota na serwer Discord
             </a>
           ) : (
-            <p className="hintBox">Wpisz Discord Client ID, a pojawi się gotowy link zaproszenia bota.</p>
+            <p className="hintBox">Centralny bot nie ma ustawionego DISCORD_CLIENT_ID na serwerze SaaS.</p>
           )}
-          <div className="codeGroup">
-            <span>Zmienne do kontenera bota</span>
-            <code>{botEnv}</code>
-          </div>
-          <div className="codeGroup">
-            <span>Endpoint zgłoszeń</span>
-            <code>{discordProjectEndpoint}</code>
-          </div>
-          <p>Webhook techniczny, jeśli kiedyś użyjesz własnej integracji zamiast bota: {discordWebhookUrl}</p>
-          <button className="secondaryButton" onClick={() => void saveDiscord()}><Check size={16} /> Zapisz Discord</button>
-          <button className="secondaryButton" onClick={() => void copyText(botEnv, "Skopiowano zmienne bota Discord")}><Copy size={16} /> Kopiuj zmienne bota</button>
+          <label>
+            ID serwera Discord
+            <input value={discordGuildId} onChange={(event) => setDiscordGuildId(event.target.value)} placeholder="np. 987654321098765432" />
+          </label>
+          <label>
+            ID kanału zgłoszeń
+            {discordChannels.length ? (
+              <select value={discordChannelId} onChange={(event) => setDiscordChannelId(event.target.value)}>
+                <option value="">Wybierz kanał</option>
+                {discordChannels.map((channel) => (
+                  <option key={channel.id} value={channel.id}>#{channel.name}</option>
+                ))}
+              </select>
+            ) : (
+              <input value={discordChannelId} onChange={(event) => setDiscordChannelId(event.target.value)} placeholder="np. 123456789012345678" />
+            )}
+          </label>
+          {discordChannelsState ? <p className="hintBox">{discordChannelsState}</p> : null}
+          <button className="secondaryButton" onClick={() => void saveDiscord()}><Check size={16} /> Zapisz połączenie Discord</button>
         </article>
         <article className="settingsCard integrationCard">
           <h2><Link2 size={18} /> Web Widget</h2>

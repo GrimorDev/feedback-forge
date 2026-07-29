@@ -7,7 +7,35 @@ import { prisma } from "../prisma.js";
 export async function registerWebhookRoutes(app: FastifyInstance) {
   app.post("/api/v1/webhooks/discord/suggest", async (request, reply) => {
     const body = discordSuggestSchema.parse(request.body);
-    const project = await ensureProject(body.projectSlug);
+    let project = body.projectSlug ? await ensureProject(body.projectSlug) : null;
+
+    if (!project && body.guildId) {
+      const integrations = await prisma.integration.findMany({
+        where: {
+          provider: "DISCORD",
+          enabled: true
+        },
+        include: {
+          project: true
+        }
+      });
+      const integration = integrations.find((item) => {
+        const integrationConfig = item.config;
+        return (
+          integrationConfig &&
+          typeof integrationConfig === "object" &&
+          !Array.isArray(integrationConfig) &&
+          "guildId" in integrationConfig &&
+          integrationConfig.guildId === body.guildId
+        );
+      });
+      project = integration?.project ?? null;
+    }
+
+    if (!project) {
+      return reply.status(404).send({ error: "Discord server is not connected to a project" });
+    }
+
     const author = await getOrCreateMember({
       discordId: body.discordId,
       name: body.authorName
@@ -21,7 +49,7 @@ export async function registerWebhookRoutes(app: FastifyInstance) {
         description: body.description,
         category: "FEATURE",
         source: "DISCORD",
-        tags: body.channelId ? [`discord:${body.channelId}`] : []
+        tags: body.channelId ? ["discord", `discord:${body.channelId}`] : ["discord"]
       },
       include: publicFeedbackInclude()
     });
@@ -71,4 +99,3 @@ export async function registerWebhookRoutes(app: FastifyInstance) {
     return reply.status(202).send({ event });
   });
 }
-
