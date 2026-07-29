@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { DndContext, DragEndEvent, DragOverlay, useDraggable, useDroppable } from "@dnd-kit/core";
 import { createRoot } from "react-dom/client";
 import {
   Bell,
   Check,
   ChevronUp,
+  Clock3,
   GitBranch,
   Inbox,
   KanbanSquare,
@@ -18,6 +20,7 @@ import {
   Sparkles,
   Sun,
   Tag,
+  Waypoints,
   Webhook
 } from "lucide-react";
 import "./styles.css";
@@ -34,10 +37,11 @@ import {
 } from "./lib/store";
 
 const ENABLE_PAYMENTS = import.meta.env.VITE_ENABLE_PAYMENTS === "true";
+type View = "admin" | "portal";
 
 function App() {
   const [state, setState] = useState<AppState>(() => loadState());
-  const [view, setView] = useState<"portal" | "admin">("admin");
+  const [view, setView] = useState<View>("admin");
   const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [query, setQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<Status | "ALL">("ALL");
@@ -141,50 +145,62 @@ function App() {
 
   return (
     <main className="shell">
-      <Header projectName={project.name} view={view} setView={setView} theme={theme} setTheme={setTheme} />
+      <Sidebar
+        projectName={project.name}
+        view={view}
+        setView={setView}
+        theme={theme}
+        setTheme={setTheme}
+        state={state}
+        enablePayments={ENABLE_PAYMENTS}
+      />
       <section className="workspace">
-        <div className="primaryPane">
-          {view === "admin" ? (
-            <>
-              <AdminToolbar
-                query={query}
-                setQuery={setQuery}
-                selectedStatus={selectedStatus}
-                setSelectedStatus={setSelectedStatus}
-              />
-              <AdminBoard feedbacks={visibleFeedbacks} updateFeedback={updateFeedback} mergeTopDuplicate={mergeTopDuplicate} />
-            </>
-          ) : (
-            <Portal
-              projectDescription={project.description}
-              feedbacks={visibleFeedbacks}
-              addFeedback={addFeedback}
-              vote={vote}
-              notifications={state.notifications}
+        {view === "admin" ? (
+          <>
+            <AdminToolbar
+              query={query}
+              setQuery={setQuery}
+              selectedStatus={selectedStatus}
+              setSelectedStatus={setSelectedStatus}
             />
-          )}
-        </div>
-        <Aside state={state} enablePayments={ENABLE_PAYMENTS} />
+            <AdminBoard feedbacks={visibleFeedbacks} updateFeedback={updateFeedback} mergeTopDuplicate={mergeTopDuplicate} />
+          </>
+        ) : (
+          <Portal
+            projectDescription={project.description}
+            feedbacks={visibleFeedbacks}
+            addFeedback={addFeedback}
+            vote={vote}
+            notifications={state.notifications}
+          />
+        )}
       </section>
     </main>
   );
 }
 
-function Header({
+function Sidebar({
   projectName,
   view,
   setView,
   theme,
-  setTheme
+  setTheme,
+  state,
+  enablePayments
 }: {
   projectName: string;
-  view: "portal" | "admin";
-  setView: (view: "portal" | "admin") => void;
+  view: View;
+  setView: (view: View) => void;
   theme: "light" | "dark";
   setTheme: (theme: "light" | "dark") => void;
+  state: AppState;
+  enablePayments: boolean;
 }) {
+  const triageCount = state.feedbacks.filter((item) => item.status === "TRIAGE" && !item.mergedIntoId).length;
+  const totalVotes = state.feedbacks.reduce((sum, item) => sum + item.upvotesCount, 0);
+
   return (
-    <header className="topbar">
+    <aside className="appSidebar">
       <div className="brand">
         <Rocket size={24} />
         <div>
@@ -192,15 +208,52 @@ function Header({
           <span>Feedback Forge</span>
         </div>
       </div>
-      <div className="headerActions">
-        <nav className="segmented" aria-label="Widok aplikacji">
-          <button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>
-            <KanbanSquare size={16} /> Panel
-          </button>
-          <button className={view === "portal" ? "active" : ""} onClick={() => setView("portal")}>
-            <RadioTower size={16} /> Roadmapa
-          </button>
-        </nav>
+
+      <div className="projectSwitch">
+        <span>Projekt</span>
+        <strong>{projectName}</strong>
+      </div>
+
+      <nav className="sideNav" aria-label="Nawigacja aplikacji">
+        <button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>
+          <KanbanSquare size={17} /> Board
+        </button>
+        <button className={view === "portal" ? "active" : ""} onClick={() => setView("portal")}>
+          <RadioTower size={17} /> Roadmapa
+        </button>
+        <button type="button">
+          <Clock3 size={17} /> Changelog
+        </button>
+        <button type="button">
+          <Webhook size={17} /> Wloty
+        </button>
+        <button type="button">
+          <ShieldCheck size={17} /> Ustawienia
+        </button>
+      </nav>
+
+      <div className="sidebarSection">
+        <h2><Sparkles size={16} /> Core</h2>
+        <dl>
+          <div><dt>Triage</dt><dd>{triageCount}</dd></div>
+          <div><dt>Głosy</dt><dd>{totalVotes}</dd></div>
+          <div><dt>Latency</dt><dd>&lt; 1s</dd></div>
+        </dl>
+      </div>
+
+      <div className="sidebarSection">
+        <h2><Waypoints size={16} /> Integracje</h2>
+        <div className="integration"><RadioTower size={15} /> Discord /suggest</div>
+        <div className="integration"><Link2 size={15} /> Web widget</div>
+        <div className="integration"><GitBranch size={15} /> GitHub issues</div>
+      </div>
+
+      <div className="sidebarSection">
+        <h2><ShieldCheck size={16} /> Płatności</h2>
+        <p className="paymentState">{enablePayments ? "Włączone" : "Feature flag: wyłączone"}</p>
+      </div>
+
+      <div className="sidebarFooter">
         <button
           className="themeToggle"
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -208,8 +261,9 @@ function Header({
         >
           {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
         </button>
+        <span>{theme === "dark" ? "Ciemny" : "Jasny"} motyw</span>
       </div>
-    </header>
+    </aside>
   );
 }
 
@@ -251,50 +305,95 @@ function AdminBoard({
   updateFeedback: (id: string, patch: Partial<Feedback>) => void;
   mergeTopDuplicate: (target: Feedback) => void;
 }) {
+  const [activeFeedback, setActiveFeedback] = useState<Feedback | null>(null);
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const feedbackId = String(event.active.id);
+    const nextStatus = event.over?.id as Status | undefined;
+    const current = feedbacks.find((item) => item.id === feedbackId);
+
+    setActiveFeedback(null);
+
+    if (!current || !nextStatus || current.status === nextStatus) return;
+    if (!adminStatuses.includes(nextStatus)) return;
+
+    updateFeedback(feedbackId, { status: nextStatus });
+  };
+
   return (
-    <section className="kanban" aria-label="Tablica triage">
-      {adminStatuses.map((status) => (
-        <div className="lane" key={status}>
-          <div className="laneHeader">
-            <span>{statusLabels[status]}</span>
-            <b>{feedbacks.filter((item) => item.status === status).length}</b>
-          </div>
-          <div className="laneStack">
-            {feedbacks.filter((item) => item.status === status).length === 0 ? (
-              <div className="emptyLane">Brak zgłoszeń</div>
-            ) : (
-              feedbacks
-                .filter((item) => item.status === status)
-                .map((item) => (
-                  <FeedbackCard
-                    key={item.id}
-                    feedback={item}
-                    onStatus={(next) => updateFeedback(item.id, { status: next })}
-                    onPriority={(priority) => updateFeedback(item.id, { priority })}
-                    onMerge={() => mergeTopDuplicate(item)}
-                  />
-                ))
-            )}
-          </div>
-        </div>
-      ))}
-    </section>
+    <DndContext
+      onDragStart={(event) => setActiveFeedback(feedbacks.find((item) => item.id === event.active.id) ?? null)}
+      onDragCancel={() => setActiveFeedback(null)}
+      onDragEnd={handleDragEnd}
+    >
+      <section className="kanban" aria-label="Tablica triage">
+        {adminStatuses.map((status) => (
+          <KanbanLane
+            key={status}
+            status={status}
+            feedbacks={feedbacks.filter((item) => item.status === status)}
+            mergeTopDuplicate={mergeTopDuplicate}
+          />
+        ))}
+      </section>
+      <DragOverlay>
+        {activeFeedback ? <FeedbackCard feedback={activeFeedback} onMerge={() => undefined} isOverlay /> : null}
+      </DragOverlay>
+    </DndContext>
+  );
+}
+
+function KanbanLane({
+  status,
+  feedbacks,
+  mergeTopDuplicate
+}: {
+  status: Status;
+  feedbacks: Feedback[];
+  mergeTopDuplicate: (target: Feedback) => void;
+}) {
+  const { isOver, setNodeRef } = useDroppable({ id: status });
+
+  return (
+    <div className={`lane ${isOver ? "isOver" : ""}`} ref={setNodeRef}>
+      <div className="laneHeader">
+        <span>{statusLabels[status]}</span>
+        <b>{feedbacks.length}</b>
+      </div>
+      <div className="laneStack">
+        {feedbacks.length === 0 ? (
+          <div className="emptyLane">Upuść tutaj</div>
+        ) : (
+          feedbacks.map((item) => <FeedbackCard key={item.id} feedback={item} onMerge={() => mergeTopDuplicate(item)} />)
+        )}
+      </div>
+    </div>
   );
 }
 
 function FeedbackCard({
   feedback,
-  onStatus,
-  onPriority,
-  onMerge
+  onMerge,
+  isOverlay = false
 }: {
   feedback: Feedback;
-  onStatus: (status: Status) => void;
-  onPriority: (priority: number) => void;
   onMerge: () => void;
+  isOverlay?: boolean;
 }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: feedback.id,
+    disabled: isOverlay
+  });
+  const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined;
+
   return (
-    <article className="feedbackCard">
+    <article
+      className={`feedbackCard ${isDragging ? "isDragging" : ""} ${isOverlay ? "dragOverlay" : ""}`}
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+    >
       <div className="cardMeta">
         <span className={`source source-${feedback.source.toLowerCase()}`}>{feedback.source.replace("_", " ")}</span>
         <span>{compactDate(feedback.createdAt)}</span>
@@ -309,21 +408,7 @@ function FeedbackCard({
       </div>
       <div className="cardActions">
         <span className="votes"><ChevronUp size={15} /> {feedback.upvotesCount}</span>
-        <input
-          aria-label="Priorytet"
-          type="range"
-          min="1"
-          max="5"
-          value={feedback.priority}
-          onChange={(event) => onPriority(Number(event.target.value))}
-        />
-        <select value={feedback.status} onChange={(event) => onStatus(event.target.value as Status)}>
-          {adminStatuses.map((status) => (
-            <option key={status} value={status}>
-              {statusLabels[status]}
-            </option>
-          ))}
-        </select>
+        <span className="priorityBadge">P{feedback.priority}</span>
         <button className="iconButton" onClick={onMerge} title="Scal podobne zgłoszenie">
           <Merge size={16} />
         </button>
@@ -402,45 +487,6 @@ function Portal({
         ))}
       </div>
     </section>
-  );
-}
-
-function Aside({ state, enablePayments }: { state: AppState; enablePayments: boolean }) {
-  const triageCount = state.feedbacks.filter((item) => item.status === "TRIAGE" && !item.mergedIntoId).length;
-  const totalVotes = state.feedbacks.reduce((sum, item) => sum + item.upvotesCount, 0);
-
-  return (
-    <aside className="sidePanel">
-      <section>
-        <h2><Sparkles size={18} /> Core</h2>
-        <dl>
-          <div><dt>Triage</dt><dd>{triageCount}</dd></div>
-          <div><dt>Głosy</dt><dd>{totalVotes}</dd></div>
-          <div><dt>Latency target</dt><dd>&lt; 1s</dd></div>
-        </dl>
-      </section>
-      <section>
-        <h2><Webhook size={18} /> Wloty</h2>
-        <div className="integration"><RadioTower size={16} /> Discord /suggest</div>
-        <div className="integration"><Link2 size={16} /> Web widget</div>
-        <div className="integration"><GitBranch size={16} /> GitHub issues</div>
-      </section>
-      <section>
-        <h2><ShieldCheck size={18} /> Płatności</h2>
-        <p className="paymentState">{enablePayments ? "Włączone dla nowych kont" : "Feature flag: wyłączone"}</p>
-        <p>Early adopters mają plan Pro za 0 USD i mogą zostać lifetime free.</p>
-      </section>
-      <section>
-        <h2><Bell size={18} /> Feedback loop</h2>
-        {state.notifications.length === 0 ? (
-          <p>Zmiana statusu na Wdrożone utworzy zdarzenie mail/Discord.</p>
-        ) : (
-          state.notifications.slice(0, 3).map((item) => (
-            <div className="notification" key={item.id}>{item.message}</div>
-          ))
-        )}
-      </section>
-    </aside>
   );
 }
 

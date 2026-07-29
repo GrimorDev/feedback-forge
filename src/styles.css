@@ -2,7 +2,7 @@
   color-scheme: light;
   --bg: #f4f7fb;
   --bg-soft: #eef3f8;
-  --surface: rgba(255, 255, 255, 0.88);
+  --surface: rgba(255, 255, 255, 0.9);
   --surface-strong: #ffffff;
   --surface-muted: #f8fafc;
   --border: #d9e2ec;
@@ -14,17 +14,16 @@
   --primary-strong: #0d9488;
   --primary-soft: #ccfbf1;
   --warning: #f59e0b;
-  --success: #16a34a;
-  --danger: #dc2626;
   --shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
   --shadow-soft: 0 10px 28px rgba(15, 23, 42, 0.06);
+  --sidebar-width: 292px;
   --radius: 8px;
   --radius-sm: 6px;
+  background: var(--bg);
+  color: var(--text);
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
-  background: var(--bg);
-  color: var(--text);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -45,8 +44,6 @@
   --primary-strong: #2dd4bf;
   --primary-soft: rgba(20, 184, 166, 0.14);
   --warning: #fbbf24;
-  --success: #22c55e;
-  --danger: #f87171;
   --shadow: 0 22px 60px rgba(0, 0, 0, 0.36);
   --shadow-soft: 0 14px 36px rgba(0, 0, 0, 0.28);
 }
@@ -55,9 +52,14 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
 html {
   min-width: 320px;
-  scrollbar-gutter: stable;
 }
 
 body {
@@ -66,7 +68,6 @@ body {
     radial-gradient(circle at 85% 10%, rgba(56, 189, 248, 0.1), transparent 30rem),
     var(--bg);
   margin: 0;
-  min-height: 100vh;
 }
 
 button,
@@ -89,6 +90,7 @@ textarea {
     border-color 160ms ease,
     box-shadow 160ms ease,
     color 160ms ease,
+    opacity 160ms ease,
     transform 160ms ease;
 }
 
@@ -101,43 +103,41 @@ textarea:focus-visible {
 }
 
 .shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   min-height: 100vh;
 }
 
-.topbar {
-  align-items: center;
-  backdrop-filter: blur(18px);
-  background: color-mix(in srgb, var(--surface-strong) 88%, transparent);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  gap: 16px;
-  justify-content: space-between;
-  min-height: 72px;
-  padding: 12px clamp(16px, 3vw, 40px);
-  position: sticky;
-  top: 0;
-  z-index: 20;
-}
-
 .brand,
-.headerActions,
-.segmented,
-.segmented button,
+.sideNav button,
 .themeToggle,
 .search,
 .cardMeta,
 .chips,
 .cardActions,
-.metrics,
-.metricPill,
 .integration,
-.sidePanel h2,
+.sidebarSection h2,
 .publicCard,
 .publicCard button,
 .votes,
-.laneHeader {
+.laneHeader,
+.metrics,
+.metrics span {
   align-items: center;
   display: flex;
+}
+
+.appSidebar {
+  background: color-mix(in srgb, var(--surface-strong) 90%, transparent);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 18px;
+  position: sticky;
+  top: 0;
 }
 
 .brand {
@@ -145,7 +145,8 @@ textarea:focus-visible {
   min-width: 0;
 }
 
-.brand svg {
+.brand svg,
+.sidebarSection h2 svg {
   color: var(--primary-strong);
   flex: 0 0 auto;
 }
@@ -158,44 +159,120 @@ textarea:focus-visible {
 .brand strong {
   color: var(--text);
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 900;
   line-height: 1.1;
 }
 
-.brand span {
+.brand span,
+.projectSwitch span,
+.sidebarFooter span {
   color: var(--text-muted);
   font-size: 12px;
-  margin-top: 3px;
 }
 
-.headerActions {
-  gap: 10px;
-}
-
-.segmented {
-  background: var(--bg-soft);
+.projectSwitch,
+.sidebarSection {
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  gap: 4px;
-  padding: 4px;
-}
-
-.segmented button {
-  background: transparent;
-  border: 0;
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  gap: 8px;
-  justify-content: center;
-  min-height: 36px;
-  min-width: 118px;
-  padding: 0 14px;
-}
-
-.segmented button.active {
-  background: var(--surface-strong);
   box-shadow: var(--shadow-soft);
+  padding: 14px;
+}
+
+.projectSwitch strong {
   color: var(--text);
+  display: block;
+  font-size: 15px;
+  margin-top: 5px;
+}
+
+.sideNav {
+  display: grid;
+  gap: 6px;
+}
+
+.sideNav button {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 12px;
+  text-align: left;
+}
+
+.sideNav button:hover,
+.sideNav button.active {
+  background: var(--primary-soft);
+  border-color: color-mix(in srgb, var(--primary) 36%, transparent);
+  color: var(--primary-strong);
+}
+
+.sidebarSection {
+  box-shadow: none;
+}
+
+.sidebarSection h2 {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 900;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.sidebarSection dl {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+}
+
+.sidebarSection dl div {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.sidebarSection dt {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.sidebarSection dd {
+  color: var(--text);
+  font-weight: 900;
+  margin: 0;
+}
+
+.integration {
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 13px;
+  gap: 8px;
+  margin-top: 8px;
+  min-height: 36px;
+  padding: 0 10px;
+}
+
+.paymentState,
+.notification {
+  background: color-mix(in srgb, var(--warning) 12%, var(--surface-strong));
+  border: 1px solid color-mix(in srgb, var(--warning) 42%, var(--border));
+  border-radius: var(--radius);
+  color: color-mix(in srgb, var(--warning) 74%, var(--text));
+  font-size: 12px;
+  font-weight: 900;
+  margin: 0;
+  padding: 10px;
+}
+
+.sidebarFooter {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  margin-top: auto;
 }
 
 .themeToggle,
@@ -204,9 +281,10 @@ textarea:focus-visible {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   color: var(--text);
-  height: 42px;
+  display: inline-flex;
+  height: 38px;
   justify-content: center;
-  min-width: 42px;
+  min-width: 38px;
 }
 
 .themeToggle:hover,
@@ -219,15 +297,10 @@ textarea:focus-visible {
 
 .workspace {
   display: grid;
-  gap: 24px;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
-  margin: 0 auto;
-  max-width: 1720px;
-  padding: 24px clamp(16px, 3vw, 40px) 42px;
-}
-
-.primaryPane {
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 100vh;
   min-width: 0;
+  padding: 18px 20px;
 }
 
 .toolbar {
@@ -238,7 +311,7 @@ textarea:focus-visible {
   display: grid;
   gap: 12px;
   grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
-  margin-bottom: 18px;
+  margin-bottom: 14px;
   padding: 12px;
 }
 
@@ -248,7 +321,7 @@ textarea:focus-visible {
   border-radius: var(--radius);
   color: var(--text-muted);
   gap: 10px;
-  min-height: 44px;
+  min-height: 42px;
   padding: 0 12px;
 }
 
@@ -256,8 +329,7 @@ textarea:focus-visible {
 .submitBox input,
 .submitBox textarea,
 .toolbar select,
-.submitBox select,
-.feedbackCard select {
+.submitBox select {
   border: 0;
   color: var(--text);
   outline: 0;
@@ -276,23 +348,26 @@ textarea:focus-visible {
 }
 
 .toolbar select,
-.submitBox select,
-.feedbackCard select {
+.submitBox select {
   appearance: none;
   background:
-    linear-gradient(45deg, transparent 50%, var(--text-muted) 50%) calc(100% - 16px) 19px / 6px 6px no-repeat,
-    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%) calc(100% - 10px) 19px / 6px 6px no-repeat,
+    linear-gradient(45deg, transparent 50%, var(--text-muted) 50%) calc(100% - 16px) 18px / 6px 6px no-repeat,
+    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%) calc(100% - 10px) 18px / 6px 6px no-repeat,
     var(--surface-muted);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  min-height: 44px;
+  min-height: 42px;
   padding: 0 34px 0 12px;
 }
 
 .kanban {
   display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 275px), 1fr));
+  gap: 14px;
+  grid-auto-columns: minmax(280px, 1fr);
+  grid-auto-flow: column;
+  min-height: 0;
+  overflow-x: auto;
+  padding-bottom: 8px;
 }
 
 .lane {
@@ -300,14 +375,22 @@ textarea:focus-visible {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-soft);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: calc(100vh - 114px);
   min-width: 0;
   padding: 12px;
+}
+
+.lane.isOver {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
 }
 
 .laneHeader {
   color: var(--text-muted);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 900;
   justify-content: space-between;
   letter-spacing: 0.04em;
   margin-bottom: 12px;
@@ -325,8 +408,12 @@ textarea:focus-visible {
 }
 
 .laneStack {
+  align-content: start;
   display: grid;
-  gap: 12px;
+  gap: 10px;
+  min-height: 120px;
+  overflow-y: auto;
+  padding-right: 2px;
 }
 
 .emptyLane {
@@ -343,8 +430,7 @@ textarea:focus-visible {
 
 .feedbackCard,
 .publicCard,
-.submitBox,
-.sidePanel section {
+.submitBox {
   background: var(--surface-strong);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -353,14 +439,26 @@ textarea:focus-visible {
 
 .feedbackCard {
   overflow: hidden;
-  padding: 14px;
+  padding: 12px;
+  touch-action: none;
 }
 
 .feedbackCard:hover,
 .publicCard:hover,
-.submitBox:hover,
-.sidePanel section:hover {
+.submitBox:hover {
   border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+}
+
+.feedbackCard.isDragging {
+  opacity: 0.34;
+}
+
+.feedbackCard.dragOverlay {
+  box-shadow: var(--shadow);
+  cursor: grabbing;
+  max-width: 340px;
+  opacity: 0.96;
+  transform: rotate(1.5deg);
 }
 
 .cardMeta {
@@ -403,27 +501,26 @@ textarea:focus-visible {
 .feedbackCard h3,
 .publicCard h3 {
   color: var(--text);
-  font-size: 15px;
-  font-weight: 800;
-  line-height: 1.35;
-  margin: 12px 0 8px;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.28;
+  margin: 10px 0 6px;
   overflow-wrap: anywhere;
 }
 
 .feedbackCard p,
 .publicCard p,
-.sidePanel p,
 .portalIntro p {
   color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1.55;
+  font-size: 12px;
+  line-height: 1.48;
   margin: 0;
 }
 
 .chips {
   flex-wrap: wrap;
   gap: 6px;
-  margin: 13px 0;
+  margin: 11px 0;
 }
 
 .chips span {
@@ -433,10 +530,10 @@ textarea:focus-visible {
   border-radius: 999px;
   color: var(--text-muted);
   display: inline-flex;
-  font-size: 12px;
+  font-size: 11px;
   gap: 4px;
   max-width: 100%;
-  min-height: 26px;
+  min-height: 24px;
   overflow: hidden;
   padding: 0 8px;
   text-overflow: ellipsis;
@@ -444,33 +541,28 @@ textarea:focus-visible {
 }
 
 .cardActions {
-  display: grid;
   gap: 8px;
-  grid-template-columns: 52px minmax(72px, 1fr) minmax(122px, 1.2fr) 38px;
+  justify-content: space-between;
 }
 
-.votes {
+.votes,
+.priorityBadge {
+  background: var(--primary-soft);
+  border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
+  border-radius: 999px;
   color: var(--primary-strong);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 900;
   gap: 2px;
-  min-width: 0;
+  min-height: 28px;
+  padding: 0 9px;
 }
 
-.cardActions input {
-  accent-color: var(--primary);
-  min-width: 0;
-  width: 100%;
-}
-
-.cardActions select {
-  min-width: 0;
-}
-
-.iconButton {
-  display: inline-flex;
-  height: 38px;
-  min-width: 38px;
+.priorityBadge {
+  background: var(--surface-muted);
+  border-color: var(--border);
+  color: var(--text-muted);
+  margin-left: auto;
 }
 
 .portal {
@@ -507,12 +599,10 @@ textarea:focus-visible {
 }
 
 .metrics span {
-  align-items: center;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 999px;
   color: var(--text);
-  display: inline-flex;
   font-size: 13px;
   gap: 7px;
   min-height: 36px;
@@ -558,11 +648,6 @@ textarea:focus-visible {
   justify-content: center;
   min-height: 44px;
   padding: 0 16px;
-}
-
-.submitBox button:hover {
-  filter: brightness(1.04);
-  transform: translateY(-1px);
 }
 
 .roadmap {
@@ -616,105 +701,65 @@ textarea:focus-visible {
   margin-top: 10px;
 }
 
-.sidePanel {
-  display: grid;
-  gap: 14px;
-  height: fit-content;
-  position: sticky;
-  top: 96px;
-}
-
-.sidePanel section {
-  padding: 16px;
-}
-
-.sidePanel h2 {
-  color: var(--text);
-  font-size: 15px;
-  font-weight: 900;
-  gap: 8px;
-  margin: 0 0 13px;
-}
-
-.sidePanel h2 svg {
-  color: var(--primary-strong);
-}
-
-.sidePanel dl {
-  display: grid;
-  gap: 10px;
-  margin: 0;
-}
-
-.sidePanel dl div {
-  align-items: center;
-  display: flex;
-  justify-content: space-between;
-}
-
-.sidePanel dt {
-  color: var(--text-muted);
-  font-size: 13px;
-}
-
-.sidePanel dd {
-  color: var(--text);
-  font-weight: 900;
-  margin: 0;
-}
-
-.integration {
-  background: var(--surface-muted);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  color: var(--text-muted);
-  font-size: 13px;
-  gap: 8px;
-  margin-top: 8px;
-  min-height: 38px;
-  padding: 0 10px;
-}
-
-.paymentState,
-.notification {
-  background: color-mix(in srgb, var(--warning) 12%, var(--surface-strong));
-  border: 1px solid color-mix(in srgb, var(--warning) 42%, var(--border));
-  border-radius: var(--radius);
-  color: color-mix(in srgb, var(--warning) 74%, var(--text));
-  font-weight: 900;
-  margin-bottom: 9px !important;
-  padding: 10px;
-}
-
-.notification {
-  background: color-mix(in srgb, var(--success) 12%, var(--surface-strong));
-  border-color: color-mix(in srgb, var(--success) 40%, var(--border));
-  color: color-mix(in srgb, var(--success) 72%, var(--text));
-  font-size: 13px;
-}
-
-@media (max-width: 1280px) {
-  .workspace {
+@media (max-width: 1040px) {
+  .shell {
     grid-template-columns: 1fr;
   }
 
-  .sidePanel {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+  .appSidebar {
+    border-bottom: 1px solid var(--border);
+    border-right: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    height: auto;
     position: static;
   }
-}
 
-@media (max-width: 980px) {
-  .sidePanel {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .sideNav {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .sidebarSection {
+    display: none;
+  }
+
+  .sidebarFooter {
+    margin-top: 0;
+    position: absolute;
+    right: 18px;
+    top: 18px;
+  }
+
+  .workspace {
+    min-height: calc(100vh - 178px);
+  }
+
+  .lane {
+    min-height: calc(100vh - 292px);
   }
 
   .roadmap {
     grid-template-columns: 1fr;
   }
+}
 
+@media (max-width: 720px) {
+  .appSidebar,
+  .workspace {
+    padding: 14px 12px;
+  }
+
+  .sideNav {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .sideNav button:nth-child(n + 3) {
+    display: none;
+  }
+
+  .toolbar,
+  .submitBox div,
   .portalIntro {
-    align-items: start;
     grid-template-columns: 1fr;
   }
 
@@ -722,57 +767,23 @@ textarea:focus-visible {
     justify-content: flex-start;
     max-width: none;
   }
-}
-
-@media (max-width: 720px) {
-  .topbar {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .headerActions {
-    align-items: stretch;
-    display: grid;
-    grid-template-columns: 1fr 42px;
-  }
-
-  .segmented {
-    min-width: 0;
-  }
-
-  .segmented button {
-    min-width: 0;
-    padding: 0 10px;
-  }
-
-  .workspace {
-    padding: 16px 12px 32px;
-  }
-
-  .toolbar,
-  .submitBox div,
-  .sidePanel {
-    grid-template-columns: 1fr;
-  }
 
   .kanban {
+    grid-auto-flow: row;
     grid-template-columns: 1fr;
+    overflow-x: visible;
   }
 
-  .cardActions {
-    grid-template-columns: 48px minmax(90px, 1fr) 38px;
+  .lane {
+    min-height: 260px;
   }
 
-  .cardActions select {
-    grid-column: 1 / -1;
+  .sidebarFooter span {
+    display: none;
   }
 }
 
 @media (max-width: 430px) {
-  .brand strong {
-    font-size: 16px;
-  }
-
   .portalIntro h1 {
     font-size: 36px;
   }
