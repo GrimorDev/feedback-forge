@@ -1,4 +1,5 @@
 import cors from "@fastify/cors";
+import cookie from "@fastify/cookie";
 import fastifyStatic from "@fastify/static";
 import Fastify from "fastify";
 import path from "node:path";
@@ -7,6 +8,7 @@ import { config } from "./server/config.js";
 import { sendError } from "./server/errors.js";
 import { prisma } from "./server/prisma.js";
 import { registerAdminRoutes } from "./server/routes/admin.js";
+import { registerAuthRoutes } from "./server/routes/auth.js";
 import { registerPublicRoutes } from "./server/routes/public.js";
 import { registerWebhookRoutes } from "./server/routes/webhooks.js";
 
@@ -20,8 +22,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicRoot = path.resolve(__dirname, "../../dist");
 
 app.register(cors, {
-  origin: config.corsOrigin === "*" ? true : config.corsOrigin.split(",").map((origin) => origin.trim())
+  origin: config.corsOrigin === "*" ? true : config.corsOrigin.split(",").map((origin) => origin.trim()),
+  credentials: true
 });
+
+app.register(cookie);
 
 app.get("/health", async () => {
   await prisma.$queryRaw`SELECT 1`;
@@ -32,6 +37,7 @@ app.get("/health", async () => {
   };
 });
 
+app.register(registerAuthRoutes);
 app.register(registerPublicRoutes);
 app.register(registerAdminRoutes);
 app.register(registerWebhookRoutes);

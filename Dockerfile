@@ -18,6 +18,7 @@ COPY package.json package-lock.json ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/server-dist ./server-dist
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/bot ./bot
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/prisma.config.ts ./prisma.config.ts
 EXPOSE 3000

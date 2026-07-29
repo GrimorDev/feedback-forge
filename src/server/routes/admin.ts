@@ -1,22 +1,24 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { getSessionUser, isAdminUser } from "../auth.js";
 import { ApiError } from "../errors.js";
 import { adminFeedbackQuerySchema, createCommentSchema, mergeFeedbackSchema, updateFeedbackSchema } from "../schemas.js";
 import { config } from "../config.js";
 import { createCompletedNotification, getOrCreateMember } from "../services.js";
 import { prisma } from "../prisma.js";
 
-function requireAdmin(request: FastifyRequest, _reply: FastifyReply, done: (error?: Error) => void) {
-  if (!config.adminApiKey) return done();
-
+async function requireAdmin(request: FastifyRequest, _reply: FastifyReply) {
   const auth = request.headers.authorization;
   const headerKey = request.headers["x-admin-api-key"];
   const bearer = auth?.startsWith("Bearer ") ? auth.slice("Bearer ".length) : undefined;
 
-  if (bearer === config.adminApiKey || headerKey === config.adminApiKey) {
-    return done();
+  if (config.adminApiKey && (bearer === config.adminApiKey || headerKey === config.adminApiKey)) {
+    return;
   }
 
-  return done(new ApiError(401, "Unauthorized"));
+  const user = await getSessionUser(request);
+  if (isAdminUser(user)) return;
+
+  throw new ApiError(401, "Unauthorized");
 }
 
 export async function registerAdminRoutes(app: FastifyInstance) {
@@ -156,4 +158,3 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     return reply.status(201).send({ comment });
   });
 }
-

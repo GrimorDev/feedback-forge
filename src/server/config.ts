@@ -8,6 +8,14 @@ export const config = {
     process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/feedback_forge",
   corsOrigin: process.env.CORS_ORIGIN ?? "*",
   adminApiKey: process.env.ADMIN_API_KEY,
+  publicBaseUrl: process.env.PUBLIC_BASE_URL ?? `http://localhost:${process.env.PORT ?? 3000}`,
+  sessionCookieName: process.env.SESSION_COOKIE_NAME ?? "ff_session",
+  discordClientId: process.env.DISCORD_CLIENT_ID,
+  discordClientSecret: process.env.DISCORD_CLIENT_SECRET,
+  discordRedirectUri: process.env.DISCORD_REDIRECT_URI,
+  adminDiscordIds: (process.env.ADMIN_DISCORD_IDS ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean),
   enablePayments: process.env.ENABLE_PAYMENTS === "true" || process.env.VITE_ENABLE_PAYMENTS === "true"
 };
-

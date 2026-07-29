@@ -63,6 +63,7 @@ model User {
   votes         Vote[]
   comments      Comment[]
   subscription  Subscription?
+  sessions      AuthSession[]
 }
 
 model Project {
@@ -193,4 +194,17 @@ model Subscription {
 
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuthSession {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }

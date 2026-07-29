@@ -10,6 +10,7 @@ import {
   Inbox,
   KanbanSquare,
   Link2,
+  LogIn,
   Merge,
   Moon,
   Plus,
@@ -24,154 +25,216 @@ import {
   Webhook
 } from "lucide-react";
 import "./styles.css";
-import type { AppState, Category, Feedback, Source, Status } from "./types";
+import type { Category, Feedback, Project, Source, Status } from "./types";
 import {
-  adminStatuses,
-  categoryLabels,
-  compactDate,
-  createFeedback,
-  loadState,
-  persistState,
-  roadmapStatuses,
-  statusLabels
-} from "./lib/store";
+  BoardResponse,
+  createPublicFeedback,
+  discordLoginUrl,
+  fetchAdminFeedbacks,
+  fetchPublicBoard,
+  fetchSession,
+  mergeFeedback,
+  SessionResponse,
+  updateAdminFeedback,
+  voteFeedback
+} from "./lib/api";
+import { adminStatuses, categoryLabels, compactDate, roadmapStatuses, statusLabels } from "./lib/store";
 
 const ENABLE_PAYMENTS = import.meta.env.VITE_ENABLE_PAYMENTS === "true";
 type View = "admin" | "portal";
 
+function routeToView(): View {
+  return window.location.pathname.startsWith("/admin") ? "admin" : "portal";
+}
+
 function App() {
-  const [state, setState] = useState<AppState>(() => loadState());
-  const [view, setView] = useState<View>("admin");
+  const [view, setViewState] = useState<View>(() => routeToView());
   const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [query, setQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<Status | "ALL">("ALL");
+  const [project, setProject] = useState<Project | null>(null);
+  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+  const [session, setSession] = useState<SessionResponse | null>(null);
+  const [adminKey, setAdminKey] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => persistState(state), [state]);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
-  const project = state.projects.find((item) => item.slug === state.activeProjectSlug)!;
+  useEffect(() => {
+    const onPopState = () => setViewState(routeToView());
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  useEffect(() => {
+    fetchSession()
+      .then(setSession)
+      .catch(() => setSession({ user: null, isAdmin: false }));
+  }, []);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      void loadData();
+    }, 180);
+    return () => window.clearTimeout(timeout);
+  }, [view, selectedStatus, query, adminKey]);
+
+  const setView = (nextView: View) => {
+    const path = nextView === "admin" ? "/admin" : "/board";
+    window.history.pushState({}, "", path);
+    setViewState(nextView);
+  };
+
+  const loadData = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      if (view === "admin") {
+        const data = await fetchAdminFeedbacks(adminKey || undefined, { status: selectedStatus, q: query });
+        setFeedbacks(data.feedbacks);
+        setProject((current) => current ?? {
+          id: "orbit-chat",
+          name: "Orbit Chat",
+          slug: "orbit-chat",
+          description: "Feedback workspace",
+          ownerId: ""
+        });
+      } else {
+        const data = await fetchPublicBoard();
+        setProject(data.project);
+        setFeedbacks(data.feedbacks);
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Nie udało się pobrać danych");
+      if (view === "portal") {
+        setFeedbacks([]);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const visibleFeedbacks = useMemo(() => {
-    return state.feedbacks
-      .filter((item) => item.projectId === project.id && !item.mergedIntoId)
+    return feedbacks
+      .filter((item) => !item.mergedIntoId)
       .filter((item) => selectedStatus === "ALL" || item.status === selectedStatus)
       .filter((item) => {
         const haystack = `${item.title} ${item.description} ${item.tags.join(" ")}`.toLowerCase();
         return haystack.includes(query.toLowerCase());
       })
       .sort((a, b) => b.priority - a.priority || b.upvotesCount - a.upvotesCount);
-  }, [project.id, query, selectedStatus, state.feedbacks]);
+  }, [feedbacks, query, selectedStatus]);
 
-  const updateFeedback = (id: string, patch: Partial<Feedback>) => {
-    setState((current) => {
-      const before = current.feedbacks.find((item) => item.id === id);
-      const feedbacks = current.feedbacks.map((item) =>
-        item.id === id ? { ...item, ...patch, updatedAt: new Date().toISOString() } : item
-      );
-      const completedNow = before?.status !== "COMPLETED" && patch.status === "COMPLETED";
-      const author = before ? current.users.find((user) => user.id === before.authorId) : undefined;
-      const notifications =
-        completedNow && before && author
-          ? [
-              {
-                id: `n_${crypto.randomUUID()}`,
-                feedbackId: id,
-                channel: author.discordId ? ("DISCORD" as const) : ("EMAIL" as const),
-                recipient: author.discordId ? `discord:${author.discordId}` : author.email,
-                message: `Sugestia "${before.title}" została wdrożona.`,
-                createdAt: new Date().toISOString()
-              },
-              ...current.notifications
-            ]
-          : current.notifications;
+  const updateFeedback = async (id: string, patch: Partial<Feedback>) => {
+    const before = feedbacks;
+    setFeedbacks((current) =>
+      current.map((item) => (item.id === id ? { ...item, ...patch, updatedAt: new Date().toISOString() } : item))
+    );
 
-      return { ...current, feedbacks, notifications };
-    });
+    try {
+      const result = await updateAdminFeedback(id, patch, adminKey || undefined);
+      setFeedbacks((current) => current.map((item) => (item.id === id ? { ...item, ...result.feedback } : item)));
+    } catch (caught) {
+      setFeedbacks(before);
+      setError(caught instanceof Error ? caught.message : "Nie udało się zapisać zmiany");
+    }
   };
 
-  const vote = (id: string) => {
-    setState((current) => {
-      const userId = "u_mila";
-      const voters = current.votes[id] ?? [];
-      const hasVote = voters.includes(userId);
-      const nextVoters = hasVote ? voters.filter((item) => item !== userId) : [...voters, userId];
-      return {
-        ...current,
-        votes: { ...current.votes, [id]: nextVoters },
-        feedbacks: current.feedbacks.map((item) =>
-          item.id === id ? { ...item, upvotesCount: Math.max(0, item.upvotesCount + (hasVote ? -1 : 1)) } : item
-        )
-      };
-    });
-  };
-
-  const addFeedback = (event: React.FormEvent<HTMLFormElement>) => {
+  const addFeedback = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const feedback = createFeedback({
-      title: String(data.get("title") ?? ""),
-      description: String(data.get("description") ?? ""),
-      category: String(data.get("category") ?? "FEATURE") as Category,
-      source: String(data.get("source") ?? "WEB_WIDGET") as Source
-    });
-    setState((current) => ({
-      ...current,
-      feedbacks: [feedback, ...current.feedbacks],
-      votes: { ...current.votes, [feedback.id]: ["u_mila"] }
-    }));
-    event.currentTarget.reset();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+
+    try {
+      const result = await createPublicFeedback({
+        title: String(data.get("title") ?? ""),
+        description: String(data.get("description") ?? ""),
+        category: String(data.get("category") ?? "FEATURE") as Category,
+        source: String(data.get("source") ?? "WEB_WIDGET") as Source
+      });
+      setFeedbacks((current) => [result.feedback, ...current]);
+      form.reset();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Nie udało się dodać zgłoszenia");
+    }
   };
 
-  const mergeTopDuplicate = (target: Feedback) => {
-    const duplicate = state.feedbacks.find(
+  const vote = async (id: string) => {
+    const before = feedbacks;
+    setFeedbacks((current) =>
+      current.map((item) => (item.id === id ? { ...item, upvotesCount: item.upvotesCount + 1 } : item))
+    );
+
+    try {
+      const result = await voteFeedback(id);
+      setFeedbacks((current) => current.map((item) => (item.id === id ? { ...item, ...result.feedback } : item)));
+    } catch (caught) {
+      setFeedbacks(before);
+      setError(caught instanceof Error ? caught.message : "Nie udało się oddać głosu");
+    }
+  };
+
+  const mergeTopDuplicate = async (target: Feedback) => {
+    const duplicate = feedbacks.find(
       (item) => item.id !== target.id && item.status === "TRIAGE" && item.category === target.category && !item.mergedIntoId
     );
     if (!duplicate) return;
 
-    setState((current) => {
-      const movedVotes = new Set([...(current.votes[target.id] ?? []), ...(current.votes[duplicate.id] ?? [])]);
-      return {
-        ...current,
-        votes: { ...current.votes, [target.id]: Array.from(movedVotes), [duplicate.id]: [] },
-        feedbacks: current.feedbacks.map((item) => {
-          if (item.id === target.id) return { ...item, upvotesCount: movedVotes.size, updatedAt: new Date().toISOString() };
-          if (item.id === duplicate.id) return { ...item, mergedIntoId: target.id, status: "REJECTED" };
-          return item;
-        })
-      };
-    });
+    const before = feedbacks;
+    setFeedbacks((current) => current.filter((item) => item.id !== duplicate.id));
+
+    try {
+      const result = await mergeFeedback(target.id, duplicate.id, adminKey || undefined);
+      setFeedbacks((current) =>
+        current.map((item) => (item.id === target.id ? { ...item, ...result.target } : item))
+      );
+    } catch (caught) {
+      setFeedbacks(before);
+      setError(caught instanceof Error ? caught.message : "Nie udało się scalić zgłoszeń");
+    }
   };
+
+  const projectName = project?.name ?? "Orbit Chat";
+  const isAdmin = session?.isAdmin || Boolean(adminKey);
 
   return (
     <main className="shell">
       <Sidebar
-        projectName={project.name}
+        projectName={projectName}
         view={view}
         setView={setView}
         theme={theme}
         setTheme={setTheme}
-        state={state}
+        feedbacks={feedbacks}
         enablePayments={ENABLE_PAYMENTS}
+        session={session}
       />
       <section className="workspace">
-        {view === "admin" ? (
+        {view === "admin" && !isAdmin ? (
+          <AdminGate adminKey={adminKey} setAdminKey={setAdminKey} error={error} />
+        ) : view === "admin" ? (
           <>
             <AdminToolbar
               query={query}
               setQuery={setQuery}
               selectedStatus={selectedStatus}
               setSelectedStatus={setSelectedStatus}
+              isLoading={isLoading}
+              error={error}
             />
             <AdminBoard feedbacks={visibleFeedbacks} updateFeedback={updateFeedback} mergeTopDuplicate={mergeTopDuplicate} />
           </>
         ) : (
           <Portal
-            projectDescription={project.description}
+            projectDescription={project?.description ?? "Publiczna roadmapa społeczności."}
             feedbacks={visibleFeedbacks}
             addFeedback={addFeedback}
             vote={vote}
-            notifications={state.notifications}
+            isLoading={isLoading}
+            error={error}
           />
         )}
       </section>
@@ -185,19 +248,21 @@ function Sidebar({
   setView,
   theme,
   setTheme,
-  state,
-  enablePayments
+  feedbacks,
+  enablePayments,
+  session
 }: {
   projectName: string;
   view: View;
   setView: (view: View) => void;
   theme: "light" | "dark";
   setTheme: (theme: "light" | "dark") => void;
-  state: AppState;
+  feedbacks: Feedback[];
   enablePayments: boolean;
+  session: SessionResponse | null;
 }) {
-  const triageCount = state.feedbacks.filter((item) => item.status === "TRIAGE" && !item.mergedIntoId).length;
-  const totalVotes = state.feedbacks.reduce((sum, item) => sum + item.upvotesCount, 0);
+  const triageCount = feedbacks.filter((item) => item.status === "TRIAGE" && !item.mergedIntoId).length;
+  const totalVotes = feedbacks.reduce((sum, item) => sum + item.upvotesCount, 0);
 
   return (
     <aside className="appSidebar">
@@ -261,9 +326,41 @@ function Sidebar({
         >
           {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
         </button>
-        <span>{theme === "dark" ? "Ciemny" : "Jasny"} motyw</span>
+        <span>{session?.user?.name ?? (theme === "dark" ? "Ciemny motyw" : "Jasny motyw")}</span>
       </div>
     </aside>
+  );
+}
+
+function AdminGate({
+  adminKey,
+  setAdminKey,
+  error
+}: {
+  adminKey: string;
+  setAdminKey: (value: string) => void;
+  error: string | null;
+}) {
+  return (
+    <section className="authPanel">
+      <div>
+        <h1>Panel admina</h1>
+        <p>Zaloguj się Discordem jako właściciel projektu albo użyj awaryjnego klucza admina z Portainera.</p>
+      </div>
+      <a className="loginButton" href={discordLoginUrl()}>
+        <LogIn size={18} /> Zaloguj przez Discord
+      </a>
+      <label className="adminKeyBox">
+        <span>Awaryjny ADMIN_API_KEY</span>
+        <input
+          value={adminKey}
+          onChange={(event) => setAdminKey(event.target.value)}
+          placeholder="Wklej klucz i poczekaj chwilę"
+          type="password"
+        />
+      </label>
+      {error ? <p className="errorBanner">{error}</p> : null}
+    </section>
   );
 }
 
@@ -271,12 +368,16 @@ function AdminToolbar({
   query,
   setQuery,
   selectedStatus,
-  setSelectedStatus
+  setSelectedStatus,
+  isLoading,
+  error
 }: {
   query: string;
   setQuery: (value: string) => void;
   selectedStatus: Status | "ALL";
   setSelectedStatus: (status: Status | "ALL") => void;
+  isLoading: boolean;
+  error: string | null;
 }) {
   return (
     <div className="toolbar">
@@ -292,6 +393,7 @@ function AdminToolbar({
           </option>
         ))}
       </select>
+      <div className="toolbarState">{isLoading ? "Synchronizacja..." : error ?? "API online"}</div>
     </div>
   );
 }
@@ -302,8 +404,8 @@ function AdminBoard({
   mergeTopDuplicate
 }: {
   feedbacks: Feedback[];
-  updateFeedback: (id: string, patch: Partial<Feedback>) => void;
-  mergeTopDuplicate: (target: Feedback) => void;
+  updateFeedback: (id: string, patch: Partial<Feedback>) => Promise<void>;
+  mergeTopDuplicate: (target: Feedback) => Promise<void>;
 }) {
   const [activeFeedback, setActiveFeedback] = useState<Feedback | null>(null);
 
@@ -317,7 +419,7 @@ function AdminBoard({
     if (!current || !nextStatus || current.status === nextStatus) return;
     if (!adminStatuses.includes(nextStatus)) return;
 
-    updateFeedback(feedbackId, { status: nextStatus });
+    void updateFeedback(feedbackId, { status: nextStatus });
   };
 
   return (
@@ -350,7 +452,7 @@ function KanbanLane({
 }: {
   status: Status;
   feedbacks: Feedback[];
-  mergeTopDuplicate: (target: Feedback) => void;
+  mergeTopDuplicate: (target: Feedback) => Promise<void>;
 }) {
   const { isOver, setNodeRef } = useDroppable({ id: status });
 
@@ -364,7 +466,7 @@ function KanbanLane({
         {feedbacks.length === 0 ? (
           <div className="emptyLane">Upuść tutaj</div>
         ) : (
-          feedbacks.map((item) => <FeedbackCard key={item.id} feedback={item} onMerge={() => mergeTopDuplicate(item)} />)
+          feedbacks.map((item) => <FeedbackCard key={item.id} feedback={item} onMerge={() => void mergeTopDuplicate(item)} />)
         )}
       </div>
     </div>
@@ -422,13 +524,15 @@ function Portal({
   feedbacks,
   addFeedback,
   vote,
-  notifications
+  isLoading,
+  error
 }: {
   projectDescription: string;
   feedbacks: Feedback[];
-  addFeedback: (event: React.FormEvent<HTMLFormElement>) => void;
-  vote: (id: string) => void;
-  notifications: AppState["notifications"];
+  addFeedback: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
+  vote: (id: string) => Promise<void>;
+  isLoading: boolean;
+  error: string | null;
 }) {
   const roadmap = feedbacks.filter((item) => roadmapStatuses.includes(item.status));
   const completed = feedbacks.filter((item) => item.status === "COMPLETED");
@@ -443,10 +547,11 @@ function Portal({
         <div className="metrics">
           <span><Inbox size={18} /> {feedbacks.length} zgłoszeń</span>
           <span><Check size={18} /> {completed.length} wdrożone</span>
-          <span><Bell size={18} /> {notifications.length} powiadomień</span>
+          <span><Bell size={18} /> {isLoading ? "sync" : "online"}</span>
         </div>
       </div>
-      <form className="submitBox" onSubmit={addFeedback}>
+      {error ? <p className="errorBanner">{error}</p> : null}
+      <form className="submitBox" onSubmit={(event) => void addFeedback(event)}>
         <input name="title" required minLength={5} placeholder="Nowa sugestia lub błąd" />
         <textarea name="description" required minLength={10} placeholder="Co się dzieje i dlaczego to ważne?" />
         <div>
@@ -472,7 +577,7 @@ function Portal({
               .filter((item) => item.status === status)
               .map((item) => (
                 <article className="publicCard" key={item.id}>
-                  <button onClick={() => vote(item.id)} title="Oddaj głos">
+                  <button onClick={() => void vote(item.id)} title="Oddaj głos">
                     <ChevronUp size={18} />
                     {item.upvotesCount}
                   </button>

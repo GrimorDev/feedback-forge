@@ -32,6 +32,11 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
       ADMIN_API_KEY: ${ADMIN_API_KEY:-change-me-before-production}
       ENABLE_PAYMENTS: ${ENABLE_PAYMENTS:-false}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3010}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
+      DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI:-http://localhost:3010/api/v1/auth/discord/callback}
+      ADMIN_DISCORD_IDS: ${ADMIN_DISCORD_IDS:-}
     ports:
       - "${API_PORT:-3010}:3000"
     command: sh -c "npx prisma migrate deploy && node server-dist/src/server.js"
@@ -58,6 +63,24 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-feedback}:${POSTGRES_PASSWORD:-feedback_password_change_me}@postgres:5432/${POSTGRES_DB:-feedback_forge}
     command: sh -c "npx prisma migrate deploy && node server-dist/prisma/seed.js"
     restart: "no"
+
+  discord-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    profiles: ["bot"]
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:-}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
+      DISCORD_GUILD_ID: ${DISCORD_GUILD_ID:-}
+      API_BASE_URL: http://api:3000
+      PROJECT_SLUG: ${PROJECT_SLUG:-orbit-chat}
+    command: node bot/discord-suggest.js
+    restart: unless-stopped
 
 volumes:
   postgres_data:
