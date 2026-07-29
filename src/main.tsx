@@ -55,7 +55,16 @@ import { adminStatuses, categoryLabels, compactDate, roadmapStatuses, statusLabe
 
 const ENABLE_PAYMENTS = import.meta.env.VITE_ENABLE_PAYMENTS === "true";
 const DEFAULT_PROJECT_SLUG = import.meta.env.VITE_PROJECT_SLUG ?? "orbit-chat";
-type View = "landing" | "adminHome" | "admin" | "portal" | "changelog" | "integrations" | "settings";
+type View =
+  | "landing"
+  | "adminHome"
+  | "admin"
+  | "adminRoadmap"
+  | "adminChangelog"
+  | "portal"
+  | "changelog"
+  | "integrations"
+  | "settings";
 type RouteState = {
   view: View;
   projectSlug: string;
@@ -75,6 +84,10 @@ function parseRoute(): RouteState {
     const view =
       parts[3] === "integrations" || parts[3] === "wloty"
         ? "integrations"
+        : parts[3] === "roadmap"
+          ? "adminRoadmap"
+          : parts[3] === "changelog"
+            ? "adminChangelog"
         : parts[3] === "settings"
           ? "settings"
           : "admin";
@@ -129,6 +142,8 @@ function App() {
       landing: "/",
       adminHome: "/admin",
       admin: `/admin/projects/${nextProjectSlug}/board`,
+      adminRoadmap: `/admin/projects/${nextProjectSlug}/roadmap`,
+      adminChangelog: `/admin/projects/${nextProjectSlug}/changelog`,
       portal: `/p/${nextProjectSlug}`,
       changelog: `/p/${nextProjectSlug}/changelog`,
       integrations: `/admin/projects/${nextProjectSlug}/wloty`,
@@ -169,7 +184,7 @@ function App() {
           description: "Feedback workspace",
           ownerId: ""
         });
-      } else if (route.view === "changelog") {
+      } else if (route.view === "changelog" || route.view === "adminChangelog") {
         const data = await fetchChangelog(route.projectSlug);
         setProject(data.project);
         setFeedbacks(data.feedbacks);
@@ -271,7 +286,13 @@ function App() {
 
   const projectName = project?.name ?? route.projectSlug;
   const isAdmin = Boolean(session?.user) || Boolean(adminKey);
-  const isAdminView = route.view === "adminHome" || route.view === "admin" || route.view === "integrations" || route.view === "settings";
+  const isAdminView =
+    route.view === "adminHome" ||
+    route.view === "admin" ||
+    route.view === "adminRoadmap" ||
+    route.view === "adminChangelog" ||
+    route.view === "integrations" ||
+    route.view === "settings";
 
   if (route.view === "landing") {
     return (
@@ -363,6 +384,41 @@ function App() {
             />
             <AdminBoard feedbacks={visibleFeedbacks} updateFeedback={updateFeedback} mergeTopDuplicate={mergeTopDuplicate} />
           </>
+        ) : route.view === "adminRoadmap" ? (
+          <section className="adminPreview">
+            <div className="previewNotice">
+              <div>
+                <strong>Podgląd publicznej roadmapy</strong>
+                <span>To widok, który dostaje społeczność pod adresem /p/{route.projectSlug}.</span>
+              </div>
+              <a className="secondaryButton" href={`/p/${route.projectSlug}`} target="_blank" rel="noreferrer">
+                <ExternalLink size={16} /> Otwórz publiczny link
+              </a>
+            </div>
+            <Portal
+              projectDescription={project?.description ?? "Publiczna roadmapa społeczności."}
+              feedbacks={visibleFeedbacks}
+              addFeedback={addFeedback}
+              vote={vote}
+              isLoading={isLoading}
+              error={error}
+              isSubmitOpen={isSubmitOpen}
+              setIsSubmitOpen={setIsSubmitOpen}
+            />
+          </section>
+        ) : route.view === "adminChangelog" ? (
+          <section className="adminPreview">
+            <div className="previewNotice">
+              <div>
+                <strong>Podgląd publicznego changelogu</strong>
+                <span>Admin zostaje w panelu, a publiczny link otwiera się osobno.</span>
+              </div>
+              <a className="secondaryButton" href={`/p/${route.projectSlug}/changelog`} target="_blank" rel="noreferrer">
+                <ExternalLink size={16} /> Otwórz publiczny link
+              </a>
+            </div>
+            <ChangelogView feedbacks={feedbacks} isLoading={isLoading} error={error} />
+          </section>
         ) : route.view === "integrations" ? (
           <IntegrationsView projectSlug={route.projectSlug} adminKey={adminKey || undefined} />
         ) : route.view === "settings" ? (
@@ -469,7 +525,7 @@ function PublicShell({
 }: {
   projectName: string;
   view: View;
-  setView: (view: View) => void;
+  setView: (view: View, projectSlug?: string) => void;
   theme: "light" | "dark";
   setTheme: (theme: "light" | "dark") => void;
   session: SessionResponse | null;
@@ -611,7 +667,7 @@ function Sidebar({
   projectName: string;
   projectSlug: string;
   view: View;
-  setView: (view: View) => void;
+  setView: (view: View, projectSlug?: string) => void;
   theme: "light" | "dark";
   setTheme: (theme: "light" | "dark") => void;
   feedbacks: Feedback[];
@@ -647,10 +703,10 @@ function Sidebar({
         <button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>
           <KanbanSquare size={17} /> Board
         </button>
-        <button className={view === "portal" ? "active" : ""} onClick={() => setView("portal")}>
+        <button className={view === "adminRoadmap" ? "active" : ""} onClick={() => setView("adminRoadmap")}>
           <RadioTower size={17} /> Roadmapa
         </button>
-        <button className={view === "changelog" ? "active" : ""} onClick={() => setView("changelog")}>
+        <button className={view === "adminChangelog" ? "active" : ""} onClick={() => setView("adminChangelog")}>
           <Clock3 size={17} /> Changelog
         </button>
         <button className={view === "integrations" ? "active" : ""} onClick={() => setView("integrations")}>
@@ -1115,13 +1171,27 @@ function IntegrationsView({ projectSlug, adminKey }: { projectSlug: string; admi
   const discordWebhookUrl = settings?.instructions.discordWebhookUrl ?? `${window.location.origin}/api/v1/webhooks/discord/suggest`;
   const githubWebhookUrl = settings?.instructions.githubWebhookUrl ?? `${window.location.origin}/api/v1/webhooks/github/issues`;
   const [discordChannelId, setDiscordChannelId] = useState("");
+  const [discordClientId, setDiscordClientId] = useState("");
+  const [discordGuildId, setDiscordGuildId] = useState("");
   const [githubRepository, setGithubRepository] = useState("");
   const [saveState, setSaveState] = useState<string | null>(null);
+  const botEnv = [
+    `API_BASE_URL=${apiBaseUrl}`,
+    `PROJECT_SLUG=${projectSlug}`,
+    "DISCORD_BOT_TOKEN=wklej_token_bota_z_Discord_Developer_Portal",
+    `DISCORD_CLIENT_ID=${discordClientId || "wklej_client_id_aplikacji"}`,
+    `DISCORD_GUILD_ID=${discordGuildId || "opcjonalnie_id_serwera"}`
+  ].join("\n");
+  const inviteUrl = discordClientId
+    ? `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(discordClientId)}&permissions=2147485696&scope=bot%20applications.commands`
+    : "";
 
   useEffect(() => {
     setDiscordChannelId(String(discordConfig.channelId ?? ""));
+    setDiscordClientId(String(discordConfig.clientId ?? ""));
+    setDiscordGuildId(String(discordConfig.guildId ?? ""));
     setGithubRepository(String(githubConfig.repository ?? ""));
-  }, [discordConfig.channelId, githubConfig.repository]);
+  }, [discordConfig.channelId, discordConfig.clientId, discordConfig.guildId, githubConfig.repository]);
 
   const copyText = async (text: string, message: string) => {
     await navigator.clipboard.writeText(text);
@@ -1131,7 +1201,12 @@ function IntegrationsView({ projectSlug, adminKey }: { projectSlug: string; admi
   const saveDiscord = async () => {
     setSaveState("Zapisuję Discord...");
     try {
-      const result = await updateIntegration(projectSlug, "DISCORD", { enabled: true, config: { channelId: discordChannelId } }, adminKey);
+      const result = await updateIntegration(
+        projectSlug,
+        "DISCORD",
+        { enabled: true, config: { channelId: discordChannelId, clientId: discordClientId, guildId: discordGuildId } },
+        adminKey
+      );
       setSettings((current) =>
         current
           ? {
@@ -1183,25 +1258,50 @@ function IntegrationsView({ projectSlug, adminKey }: { projectSlug: string; admi
       <div className="integrationGrid">
         <article className="settingsCard integrationCard integrationCardPrimary">
           <h2><RadioTower size={18} /> Bot Discorda</h2>
+          <ol className="setupSteps">
+            <li><strong>1. Discord</strong><span>Utwórz aplikację, dodaj bota i skopiuj Bot Token oraz Client ID.</span></li>
+            <li><strong>2. Portainer</strong><span>Uruchom kontener bota ze zmiennymi z przycisku poniżej.</span></li>
+            <li><strong>3. Ten panel</strong><span>Wpisz ID kanału zgłoszeń i kliknij Zapisz Discord.</span></li>
+          </ol>
           <p>Gotowy skrypt `bot/discord-suggest.js` wymaga tych zmiennych w kontenerze bota. `API_BASE_URL` to adres Twojej aplikacji bez końcówki `/api`.</p>
           <label>
             ID kanału zgłoszeń
             <input value={discordChannelId} onChange={(event) => setDiscordChannelId(event.target.value)} placeholder="np. 123456789012345678" />
           </label>
-          <code>API_BASE_URL={apiBaseUrl}</code>
-          <code>PROJECT_SLUG={projectSlug}</code>
-          <code>DISCORD_BOT_TOKEN=wklej_token_bota</code>
-          <code>DISCORD_CLIENT_ID=wklej_client_id_aplikacji</code>
-          <code>DISCORD_GUILD_ID=opcjonalnie_id_serwera</code>
-          <code>{discordProjectEndpoint}</code>
+          <label>
+            Discord Client ID
+            <input value={discordClientId} onChange={(event) => setDiscordClientId(event.target.value)} placeholder="Client ID aplikacji Discord" />
+          </label>
+          <label>
+            Discord Guild ID
+            <input value={discordGuildId} onChange={(event) => setDiscordGuildId(event.target.value)} placeholder="Opcjonalnie ID serwera" />
+          </label>
+          {inviteUrl ? (
+            <a className="secondaryButton" href={inviteUrl} target="_blank" rel="noreferrer">
+              <ExternalLink size={16} /> Zaproś bota na Discord
+            </a>
+          ) : (
+            <p className="hintBox">Wpisz Discord Client ID, a pojawi się gotowy link zaproszenia bota.</p>
+          )}
+          <div className="codeGroup">
+            <span>Zmienne do kontenera bota</span>
+            <code>{botEnv}</code>
+          </div>
+          <div className="codeGroup">
+            <span>Endpoint zgłoszeń</span>
+            <code>{discordProjectEndpoint}</code>
+          </div>
           <p>Webhook techniczny, jeśli kiedyś użyjesz własnej integracji zamiast bota: {discordWebhookUrl}</p>
           <button className="secondaryButton" onClick={() => void saveDiscord()}><Check size={16} /> Zapisz Discord</button>
-          <button className="secondaryButton" onClick={() => void copyText(`API_BASE_URL=${apiBaseUrl}\nPROJECT_SLUG=${projectSlug}\nDISCORD_BOT_TOKEN=\nDISCORD_CLIENT_ID=\nDISCORD_GUILD_ID=`, "Skopiowano zmienne bota Discord")}><Copy size={16} /> Kopiuj zmienne bota</button>
+          <button className="secondaryButton" onClick={() => void copyText(botEnv, "Skopiowano zmienne bota Discord")}><Copy size={16} /> Kopiuj zmienne bota</button>
         </article>
         <article className="settingsCard integrationCard">
           <h2><Link2 size={18} /> Web Widget</h2>
           <p>Wklej ten snippet przed `&lt;/body&gt;` na stronie aplikacji lub dokumentacji.</p>
-          <code>{widgetSnippet}</code>
+          <div className="codeGroup">
+            <span>Snippet HTML</span>
+            <code>{widgetSnippet}</code>
+          </div>
           <button className="secondaryButton" onClick={() => void copyText(widgetSnippet, "Skopiowano snippet widgetu")}><Copy size={16} /> Kopiuj snippet</button>
         </article>
         <article className="settingsCard integrationCard">
@@ -1211,7 +1311,10 @@ function IntegrationsView({ projectSlug, adminKey }: { projectSlug: string; admi
             Repozytorium
             <input value={githubRepository} onChange={(event) => setGithubRepository(event.target.value)} placeholder="owner/repository" />
           </label>
-          <code>{githubWebhookUrl}</code>
+          <div className="codeGroup">
+            <span>Endpoint webhooka GitHub</span>
+            <code>{githubWebhookUrl}</code>
+          </div>
           <button className="secondaryButton" onClick={() => void saveGithub()}><Check size={16} /> Zapisz GitHub</button>
           <button className="secondaryButton" onClick={() => void copyText(githubWebhookUrl, "Skopiowano endpoint GitHuba")}><Copy size={16} /> Kopiuj endpoint</button>
         </article>

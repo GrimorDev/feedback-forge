@@ -1310,6 +1310,93 @@ textarea:focus-visible {
   min-width: 0;
 }
 
+.adminPreview {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.previewNotice {
+  align-items: center;
+  background: color-mix(in srgb, var(--primary) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--border));
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 12px 14px;
+}
+
+.previewNotice div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.previewNotice strong {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.previewNotice span {
+  color: var(--text-muted);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.setupSteps {
+  counter-reset: setup;
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.setupSteps li {
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px 12px;
+}
+
+.setupSteps strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.setupSteps span {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.codeGroup {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.codeGroup > span {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.hintBox {
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface-muted));
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border));
+  border-radius: var(--radius);
+  color: var(--text-muted) !important;
+  padding: 10px 12px;
+}
+
 .settingsCard p {
   color: var(--text-muted);
   font-size: 13px;
@@ -1566,7 +1653,8 @@ textarea:focus-visible {
   }
 
   .viewHeader,
-  .timelineItem {
+  .timelineItem,
+  .previewNotice {
     align-items: stretch;
     display: grid;
   }
