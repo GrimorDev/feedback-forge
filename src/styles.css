@@ -111,6 +111,8 @@ textarea:focus-visible {
 .brand,
 .sideNav button,
 .themeToggle,
+.profileButton,
+.profileMenu button,
 .search,
 .cardMeta,
 .chips,
@@ -119,6 +121,12 @@ textarea:focus-visible {
 .sidebarSection h2,
 .publicCard,
 .publicCard button,
+.viewHeader,
+.statusPill,
+.timelineItem,
+.settingsCard h2,
+.secondaryButton,
+.dangerButton,
 .votes,
 .laneHeader,
 .metrics,
@@ -273,6 +281,123 @@ textarea:focus-visible {
   display: flex;
   gap: 10px;
   margin-top: auto;
+  position: relative;
+}
+
+.profileMenuWrap {
+  min-width: 0;
+  position: relative;
+}
+
+.profileButton {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  color: var(--text);
+  gap: 9px;
+  max-width: 198px;
+  min-height: 42px;
+  padding: 5px 8px;
+  text-align: left;
+}
+
+.profileButton:hover {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.profileButton img,
+.profileButton > svg {
+  border-radius: 999px;
+  flex: 0 0 28px;
+  height: 28px;
+  width: 28px;
+}
+
+.profileButton img {
+  object-fit: cover;
+}
+
+.profileButton span {
+  min-width: 0;
+}
+
+.profileButton strong,
+.profileButton small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profileButton strong {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.profileButton small {
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.profileMenu {
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  bottom: calc(100% + 10px);
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 6px;
+  left: 0;
+  min-width: 230px;
+  padding: 10px;
+  position: absolute;
+  z-index: 20;
+}
+
+.profileMenu div {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+  min-width: 0;
+  padding: 4px 4px 10px;
+}
+
+.profileMenu strong,
+.profileMenu span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profileMenu strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.profileMenu span {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.profileMenu button {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  gap: 8px;
+  justify-content: flex-start;
+  min-height: 34px;
+  padding: 0 8px;
+}
+
+.profileMenu button:hover {
+  background: var(--surface-muted);
+  border-color: var(--border);
+  color: var(--text);
 }
 
 .themeToggle,
@@ -805,6 +930,225 @@ textarea:focus-visible {
   margin-top: 10px;
 }
 
+.contentView {
+  display: grid;
+  gap: 18px;
+  max-width: 1120px;
+  min-width: 0;
+}
+
+.viewHeader {
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.viewHeader h1 {
+  color: var(--text);
+  font-size: clamp(32px, 5vw, 56px);
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 0.95;
+  margin: 0 0 12px;
+}
+
+.viewHeader p {
+  color: var(--text-muted);
+  margin: 0;
+  max-width: 680px;
+}
+
+.statusPill {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-weight: 800;
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+.timeline {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+}
+
+.timelineItem {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--border);
+  gap: 18px;
+  padding: 18px;
+}
+
+.timelineItem:last-child {
+  border-bottom: 0;
+}
+
+.timelineItem time {
+  color: var(--text-soft);
+  flex: 0 0 86px;
+  font-size: 12px;
+  font-weight: 800;
+  padding-top: 4px;
+  text-transform: uppercase;
+}
+
+.timelineItem div {
+  min-width: 0;
+}
+
+.timelineItem h2 {
+  color: var(--text);
+  font-size: 17px;
+  line-height: 1.25;
+  margin: 0 0 7px;
+}
+
+.timelineItem p {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 0;
+  max-width: 720px;
+}
+
+.timelineItem span {
+  color: var(--primary-strong);
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 900;
+  margin-top: 12px;
+}
+
+.emptyState {
+  color: var(--text-muted);
+  padding: 28px;
+  text-align: center;
+}
+
+.settingsGrid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settingsCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+  display: grid;
+  gap: 13px;
+  min-width: 0;
+  padding: 16px;
+}
+
+.settingsCard h2 {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 900;
+  gap: 8px;
+  margin: 0;
+}
+
+.settingsCard p {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.settingsCard label {
+  color: var(--text-muted);
+  display: grid;
+  font-size: 12px;
+  font-weight: 800;
+  gap: 7px;
+}
+
+.settingsCard input,
+.settingsCard textarea {
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  min-height: 40px;
+  padding: 10px 12px;
+  width: 100%;
+}
+
+.settingsCard textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.settingsCard code {
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  display: block;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-x: auto;
+  padding: 12px;
+  white-space: nowrap;
+}
+
+.secondaryButton,
+.dangerButton {
+  border-radius: var(--radius);
+  gap: 8px;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 13px;
+}
+
+.secondaryButton {
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.secondaryButton:hover {
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+  color: var(--primary-strong);
+}
+
+.toggleRow {
+  align-items: center;
+  display: flex !important;
+  flex-direction: row;
+  gap: 10px !important;
+}
+
+.toggleRow input {
+  accent-color: var(--primary);
+  min-height: auto;
+  width: 18px;
+}
+
+.dangerCard {
+  border-color: color-mix(in srgb, #ef4444 40%, var(--border));
+}
+
+.dangerButton {
+  background: color-mix(in srgb, #ef4444 12%, var(--surface-strong));
+  border: 1px solid color-mix(in srgb, #ef4444 42%, var(--border));
+  color: #f87171;
+  font-weight: 900;
+}
+
+.dangerButton:hover {
+  background: color-mix(in srgb, #ef4444 18%, var(--surface-strong));
+}
+
 @media (max-width: 1040px) {
   .shell {
     grid-template-columns: 1fr;
@@ -834,6 +1178,11 @@ textarea:focus-visible {
     top: 18px;
   }
 
+  .profileMenu {
+    left: auto;
+    right: 0;
+  }
+
   .workspace {
     min-height: calc(100vh - 178px);
   }
@@ -843,6 +1192,10 @@ textarea:focus-visible {
   }
 
   .roadmap {
+    grid-template-columns: 1fr;
+  }
+
+  .settingsGrid {
     grid-template-columns: 1fr;
   }
 }
@@ -884,6 +1237,25 @@ textarea:focus-visible {
 
   .sidebarFooter span {
     display: none;
+  }
+
+  .profileButton {
+    max-width: 44px;
+    padding: 5px;
+  }
+
+  .profileButton span {
+    display: none;
+  }
+
+  .viewHeader,
+  .timelineItem {
+    align-items: stretch;
+    display: grid;
+  }
+
+  .timelineItem time {
+    flex-basis: auto;
   }
 }
 

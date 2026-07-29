@@ -56,6 +56,10 @@ export async function fetchPublicBoard() {
   return apiFetch<BoardResponse>(`/api/v1/projects/${PROJECT_SLUG}/board`);
 }
 
+export async function fetchChangelog() {
+  return apiFetch<BoardResponse>(`/api/v1/projects/${PROJECT_SLUG}/changelog`);
+}
+
 export async function fetchAdminFeedbacks(adminKey?: string, query?: { status?: Status | "ALL"; q?: string }) {
   const params = new URLSearchParams({ projectSlug: PROJECT_SLUG, take: "100" });
   if (query?.status && query.status !== "ALL") params.set("status", query.status);
@@ -107,4 +111,8 @@ export async function voteFeedback(id: string) {
 
 export function discordLoginUrl() {
   return `${API_BASE_URL}/api/v1/auth/discord/start`;
+}
+
+export async function logout() {
+  return apiFetch<{ ok: boolean }>("/api/v1/auth/logout", { method: "POST" });
 }

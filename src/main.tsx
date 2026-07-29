@@ -6,11 +6,14 @@ import {
   Check,
   ChevronUp,
   Clock3,
+  Copy,
+  ExternalLink,
   GitBranch,
   Inbox,
   KanbanSquare,
   Link2,
   LogIn,
+  LogOut,
   Merge,
   Moon,
   Plus,
@@ -21,6 +24,8 @@ import {
   Sparkles,
   Sun,
   Tag,
+  Trash2,
+  UserRound,
   Waypoints,
   Webhook
 } from "lucide-react";
@@ -30,9 +35,11 @@ import {
   BoardResponse,
   createPublicFeedback,
   discordLoginUrl,
+  fetchChangelog,
   fetchAdminFeedbacks,
   fetchPublicBoard,
   fetchSession,
+  logout,
   mergeFeedback,
   SessionResponse,
   updateAdminFeedback,
@@ -41,10 +48,15 @@ import {
 import { adminStatuses, categoryLabels, compactDate, roadmapStatuses, statusLabels } from "./lib/store";
 
 const ENABLE_PAYMENTS = import.meta.env.VITE_ENABLE_PAYMENTS === "true";
-type View = "admin" | "portal";
+type View = "admin" | "portal" | "changelog" | "integrations" | "settings";
+const PROJECT_SLUG = import.meta.env.VITE_PROJECT_SLUG ?? "orbit-chat";
 
 function routeToView(): View {
-  return window.location.pathname.startsWith("/admin") ? "admin" : "portal";
+  if (window.location.pathname.startsWith("/admin")) return "admin";
+  if (window.location.pathname.startsWith("/changelog")) return "changelog";
+  if (window.location.pathname.startsWith("/integrations")) return "integrations";
+  if (window.location.pathname.startsWith("/settings")) return "settings";
+  return "portal";
 }
 
 function App() {
@@ -83,7 +95,14 @@ function App() {
   }, [view, selectedStatus, query, adminKey, session?.isAdmin]);
 
   const setView = (nextView: View) => {
-    const path = nextView === "admin" ? "/admin" : "/board";
+    const paths: Record<View, string> = {
+      admin: "/admin",
+      portal: "/board",
+      changelog: "/changelog",
+      integrations: "/integrations",
+      settings: "/settings"
+    };
+    const path = paths[nextView];
     window.history.pushState({}, "", path);
     setViewState(nextView);
   };
@@ -92,7 +111,7 @@ function App() {
     setIsLoading(true);
     setError(null);
     try {
-      if (view === "admin") {
+      if (view === "admin" || view === "integrations" || view === "settings") {
         if (!session?.isAdmin && !adminKey) {
           setFeedbacks([]);
           return;
@@ -107,6 +126,10 @@ function App() {
           description: "Feedback workspace",
           ownerId: ""
         });
+      } else if (view === "changelog") {
+        const data = await fetchChangelog();
+        setProject(data.project);
+        setFeedbacks(data.feedbacks);
       } else {
         const data = await fetchPublicBoard();
         setProject(data.project);
@@ -205,7 +228,7 @@ function App() {
   const projectName = project?.name ?? "Orbit Chat";
   const isAdmin = session?.isAdmin || Boolean(adminKey);
 
-  if (view === "admin" && !isAdmin) {
+  if ((view === "admin" || view === "integrations" || view === "settings") && !isAdmin) {
     return (
       <main className="authShell">
         <AdminGate
@@ -243,6 +266,12 @@ function App() {
             />
             <AdminBoard feedbacks={visibleFeedbacks} updateFeedback={updateFeedback} mergeTopDuplicate={mergeTopDuplicate} />
           </>
+        ) : view === "changelog" ? (
+          <ChangelogView feedbacks={feedbacks} isLoading={isLoading} error={error} />
+        ) : view === "integrations" ? (
+          <IntegrationsView />
+        ) : view === "settings" ? (
+          <SettingsView project={project} session={session} />
         ) : (
           <Portal
             projectDescription={project?.description ?? "Publiczna roadmapa społeczności."}
@@ -279,6 +308,13 @@ function Sidebar({
 }) {
   const triageCount = feedbacks.filter((item) => item.status === "TRIAGE" && !item.mergedIntoId).length;
   const totalVotes = feedbacks.reduce((sum, item) => sum + item.upvotesCount, 0);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const user = session?.user;
+
+  const handleLogout = async () => {
+    await logout().catch(() => undefined);
+    window.location.href = "/board";
+  };
 
   return (
     <aside className="appSidebar">
@@ -302,13 +338,13 @@ function Sidebar({
         <button className={view === "portal" ? "active" : ""} onClick={() => setView("portal")}>
           <RadioTower size={17} /> Roadmapa
         </button>
-        <button type="button">
+        <button className={view === "changelog" ? "active" : ""} onClick={() => setView("changelog")}>
           <Clock3 size={17} /> Changelog
         </button>
-        <button type="button">
+        <button className={view === "integrations" ? "active" : ""} onClick={() => setView("integrations")}>
           <Webhook size={17} /> Wloty
         </button>
-        <button type="button">
+        <button className={view === "settings" ? "active" : ""} onClick={() => setView("settings")}>
           <ShieldCheck size={17} /> Ustawienia
         </button>
       </nav>
@@ -342,7 +378,29 @@ function Sidebar({
         >
           {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
         </button>
-        <span>{session?.user?.name ?? (theme === "dark" ? "Ciemny motyw" : "Jasny motyw")}</span>
+        {user ? (
+          <div className="profileMenuWrap">
+            <button className="profileButton" onClick={() => setIsProfileOpen((current) => !current)}>
+              {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : <UserRound size={18} />}
+              <span>
+                <strong>{user.name ?? "Admin"}</strong>
+                <small>{user.role === "ADMIN" ? "Właściciel / Admin" : "Społeczność"}</small>
+              </span>
+            </button>
+            {isProfileOpen ? (
+              <div className="profileMenu">
+                <div>
+                  <strong>{user.name ?? "Użytkownik"}</strong>
+                  <span>{user.email}</span>
+                </div>
+                <button type="button"><UserRound size={15} /> Edytuj profil</button>
+                <button type="button" onClick={() => void handleLogout()}><LogOut size={15} /> Wyloguj</button>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <span>{theme === "dark" ? "Ciemny motyw" : "Jasny motyw"}</span>
+        )}
       </div>
     </aside>
   );
@@ -612,6 +670,143 @@ function Portal({
               ))}
           </div>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function ChangelogView({
+  feedbacks,
+  isLoading,
+  error
+}: {
+  feedbacks: Feedback[];
+  isLoading: boolean;
+  error: string | null;
+}) {
+  return (
+    <section className="contentView">
+      <div className="viewHeader">
+        <div>
+          <h1>Changelog</h1>
+          <p>Publiczna kronika zmian powstaje z kart przesuniętych do kolumny Wdrożone.</p>
+        </div>
+        <span className="statusPill">{isLoading ? "Synchronizacja" : `${feedbacks.length} wpisów`}</span>
+      </div>
+      {error ? <p className="errorBanner">{error}</p> : null}
+      <div className="timeline">
+        {feedbacks.length === 0 ? (
+          <div className="emptyState">Brak wdrożonych zmian. Przesuń kartę do Wdrożone, żeby utworzyć wpis.</div>
+        ) : (
+          feedbacks.map((item) => (
+            <article className="timelineItem" key={item.id}>
+              <time>{compactDate(item.updatedAt)}</time>
+              <div>
+                <h2>Wdrożono: {item.title}</h2>
+                <p>{item.description}</p>
+                <span>{categoryLabels[item.category]}</span>
+              </div>
+            </article>
+          ))
+        )}
+      </div>
+    </section>
+  );
+}
+
+function IntegrationsView() {
+  const widgetSnippet = `<script async src="https://twoja-domena.pl/widget.js" data-project="${PROJECT_SLUG}"></script>`;
+
+  return (
+    <section className="contentView">
+      <div className="viewHeader">
+        <div>
+          <h1>Wloty</h1>
+          <p>Źródła, z których feedback spływa automatycznie do triage.</p>
+        </div>
+      </div>
+      <div className="settingsGrid">
+        <article className="settingsCard">
+          <h2><RadioTower size={18} /> Bot Discorda</h2>
+          <p>Dodaj bota do serwera i używaj komendy `/suggest tytuł opis`.</p>
+          <label>
+            ID kanału zgłoszeń
+            <input placeholder="np. 123456789012345678" />
+          </label>
+          <button className="secondaryButton"><ExternalLink size={16} /> Instrukcja instalacji</button>
+        </article>
+        <article className="settingsCard">
+          <h2><Link2 size={18} /> Web Widget</h2>
+          <p>Wklej snippet na stronę aplikacji lub dokumentacji.</p>
+          <code>{widgetSnippet}</code>
+          <button className="secondaryButton"><Copy size={16} /> Kopiuj snippet</button>
+        </article>
+        <article className="settingsCard">
+          <h2><GitBranch size={18} /> GitHub Sync</h2>
+          <p>Import issue jako kart feedbacku. Moduł gotowy do podpięcia tokena repozytorium.</p>
+          <label>
+            Repozytorium
+            <input placeholder="owner/repository" />
+          </label>
+        </article>
+      </div>
+    </section>
+  );
+}
+
+function SettingsView({ project, session }: { project: Project | null; session: SessionResponse | null }) {
+  return (
+    <section className="contentView">
+      <div className="viewHeader">
+        <div>
+          <h1>Ustawienia</h1>
+          <p>Konfiguracja projektu, domeny, zespołu i widoczności roadmapy.</p>
+        </div>
+      </div>
+      <div className="settingsGrid">
+        <article className="settingsCard">
+          <h2>Ogólne</h2>
+          <label>
+            Nazwa projektu
+            <input defaultValue={project?.name ?? "Orbit Chat"} />
+          </label>
+          <label>
+            Opis
+            <textarea defaultValue={project?.description ?? ""} />
+          </label>
+        </article>
+        <article className="settingsCard">
+          <h2>Własna domena</h2>
+          <label>
+            Domena
+            <input placeholder="feedback.twojadomena.pl" />
+          </label>
+          <p>Po podpięciu DNS ustaw `PUBLIC_BASE_URL` i redirect Discord OAuth na tę domenę.</p>
+        </article>
+        <article className="settingsCard">
+          <h2>Uprawnienia / Zespół</h2>
+          <p>Aktualny admin: {session?.user?.name ?? "Brak sesji"}.</p>
+          <label>
+            Discord ID moderatorów
+            <input placeholder="123...,456..." />
+          </label>
+        </article>
+        <article className="settingsCard">
+          <h2>Prywatność</h2>
+          <label className="toggleRow">
+            <input type="checkbox" defaultChecked />
+            Roadmapa publiczna
+          </label>
+          <label className="toggleRow">
+            <input type="checkbox" />
+            Wymagaj logowania do głosowania
+          </label>
+        </article>
+        <article className="settingsCard dangerCard">
+          <h2>Danger Zone</h2>
+          <p>Operacje destrukcyjne powinny wymagać ponownego potwierdzenia.</p>
+          <button className="dangerButton"><Trash2 size={16} /> Zresetuj dane projektu</button>
+        </article>
       </div>
     </section>
   );
