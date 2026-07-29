@@ -2,6 +2,18 @@
 
 `ENABLE_PAYMENTS=false` keeps all new accounts on `EARLY_ADOPTER` with `lifetimeFree=true`.
 
+## Tenant URL model
+
+Each project is addressed by its `Project.slug`.
+
+| Surface | URL |
+| --- | --- |
+| Public roadmap | `/p/:projectSlug` |
+| Public changelog | `/p/:projectSlug/changelog` |
+| Admin board | `/admin/projects/:projectSlug` |
+| Admin integrations | `/admin/projects/:projectSlug/integrations` |
+| Admin settings | `/admin/projects/:projectSlug/settings` |
+
 Admin endpoints are protected when `ADMIN_API_KEY` is set. Send either:
 
 - `Authorization: Bearer <ADMIN_API_KEY>`

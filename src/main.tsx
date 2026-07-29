@@ -52,19 +52,37 @@ import {
 import { adminStatuses, categoryLabels, compactDate, roadmapStatuses, statusLabels } from "./lib/store";
 
 const ENABLE_PAYMENTS = import.meta.env.VITE_ENABLE_PAYMENTS === "true";
-type View = "admin" | "portal" | "changelog" | "integrations" | "settings";
-const PROJECT_SLUG = import.meta.env.VITE_PROJECT_SLUG ?? "orbit-chat";
+const DEFAULT_PROJECT_SLUG = import.meta.env.VITE_PROJECT_SLUG ?? "orbit-chat";
+type View = "landing" | "admin" | "portal" | "changelog" | "integrations" | "settings";
+type RouteState = {
+  view: View;
+  projectSlug: string;
+};
 
-function routeToView(): View {
-  if (window.location.pathname.startsWith("/admin/integrations")) return "integrations";
-  if (window.location.pathname.startsWith("/admin/settings")) return "settings";
-  if (window.location.pathname.startsWith("/admin")) return "admin";
-  if (window.location.pathname.startsWith("/changelog")) return "changelog";
-  return "portal";
+function parseRoute(): RouteState {
+  const parts = window.location.pathname.split("/").filter(Boolean);
+
+  if (parts[0] === "p" && parts[1]) {
+    return {
+      view: parts[2] === "changelog" ? "changelog" : "portal",
+      projectSlug: decodeURIComponent(parts[1])
+    };
+  }
+
+  if (parts[0] === "admin" && parts[1] === "projects" && parts[2]) {
+    const view = parts[3] === "integrations" ? "integrations" : parts[3] === "settings" ? "settings" : "admin";
+    return { view, projectSlug: decodeURIComponent(parts[2]) };
+  }
+
+  if (parts[0] === "board") return { view: "portal", projectSlug: DEFAULT_PROJECT_SLUG };
+  if (parts[0] === "changelog") return { view: "changelog", projectSlug: DEFAULT_PROJECT_SLUG };
+  if (parts[0] === "admin") return { view: "admin", projectSlug: DEFAULT_PROJECT_SLUG };
+
+  return { view: "landing", projectSlug: DEFAULT_PROJECT_SLUG };
 }
 
 function App() {
-  const [view, setViewState] = useState<View>(() => routeToView());
+  const [route, setRoute] = useState<RouteState>(() => parseRoute());
   const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [query, setQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<Status | "ALL">("ALL");
@@ -81,7 +99,7 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
-    const onPopState = () => setViewState(routeToView());
+    const onPopState = () => setRoute(parseRoute());
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
@@ -97,52 +115,58 @@ function App() {
       void loadData();
     }, 180);
     return () => window.clearTimeout(timeout);
-  }, [view, selectedStatus, query, adminKey, session?.isAdmin]);
+  }, [route.view, route.projectSlug, selectedStatus, query, adminKey, session?.isAdmin]);
 
-  const setView = (nextView: View) => {
+  const setView = (nextView: View, nextProjectSlug = route.projectSlug) => {
     const paths: Record<View, string> = {
-      admin: "/admin",
-      portal: "/board",
-      changelog: "/changelog",
-      integrations: "/admin/integrations",
-      settings: "/admin/settings"
+      landing: "/",
+      admin: `/admin/projects/${nextProjectSlug}`,
+      portal: `/p/${nextProjectSlug}`,
+      changelog: `/p/${nextProjectSlug}/changelog`,
+      integrations: `/admin/projects/${nextProjectSlug}/integrations`,
+      settings: `/admin/projects/${nextProjectSlug}/settings`
     };
     const path = paths[nextView];
     window.history.pushState({}, "", path);
-    setViewState(nextView);
+    setRoute({ view: nextView, projectSlug: nextProjectSlug });
   };
 
   const loadData = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      if (view === "admin" || view === "integrations" || view === "settings") {
+      if (route.view === "landing") {
+        setFeedbacks([]);
+        return;
+      }
+
+      if (route.view === "admin" || route.view === "integrations" || route.view === "settings") {
         if (!session?.isAdmin && !adminKey) {
           setFeedbacks([]);
           return;
         }
 
-        const data = await fetchAdminFeedbacks(adminKey || undefined, { status: selectedStatus, q: query });
+        const data = await fetchAdminFeedbacks(route.projectSlug, adminKey || undefined, { status: selectedStatus, q: query });
         setFeedbacks(data.feedbacks);
         setProject((current) => current ?? {
-          id: "orbit-chat",
-          name: "Orbit Chat",
-          slug: "orbit-chat",
+          id: route.projectSlug,
+          name: route.projectSlug,
+          slug: route.projectSlug,
           description: "Feedback workspace",
           ownerId: ""
         });
-      } else if (view === "changelog") {
-        const data = await fetchChangelog();
+      } else if (route.view === "changelog") {
+        const data = await fetchChangelog(route.projectSlug);
         setProject(data.project);
         setFeedbacks(data.feedbacks);
       } else {
-        const data = await fetchPublicBoard();
+        const data = await fetchPublicBoard(route.projectSlug);
         setProject(data.project);
         setFeedbacks(data.feedbacks);
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Nie udało się pobrać danych");
-      if (view === "portal") {
+      if (route.view === "portal") {
         setFeedbacks([]);
       }
     } finally {
@@ -183,6 +207,7 @@ function App() {
 
     try {
       const result = await createPublicFeedback({
+        projectSlug: route.projectSlug,
         title: String(data.get("title") ?? ""),
         description: String(data.get("description") ?? ""),
         category: String(data.get("category") ?? "FEATURE") as Category,
@@ -232,7 +257,18 @@ function App() {
 
   const projectName = project?.name ?? "Orbit Chat";
   const isAdmin = session?.isAdmin || Boolean(adminKey);
-  const isAdminView = view === "admin" || view === "integrations" || view === "settings";
+  const isAdminView = route.view === "admin" || route.view === "integrations" || route.view === "settings";
+
+  if (route.view === "landing") {
+    return (
+      <LandingView
+        theme={theme}
+        setTheme={setTheme}
+        session={session}
+        openDemo={() => setView("portal", DEFAULT_PROJECT_SLUG)}
+      />
+    );
+  }
 
   if (isAdminView && !isAdmin) {
     return (
@@ -251,17 +287,17 @@ function App() {
     return (
       <PublicShell
         projectName={projectName}
-        view={view}
+        view={route.view}
         setView={setView}
         theme={theme}
         setTheme={setTheme}
         session={session}
         onReportClick={() => {
           setIsSubmitOpen(true);
-          if (view !== "portal") setView("portal");
+          if (route.view !== "portal") setView("portal");
         }}
       >
-        {view === "changelog" ? (
+        {route.view === "changelog" ? (
           <ChangelogView feedbacks={feedbacks} isLoading={isLoading} error={error} />
         ) : (
           <Portal
@@ -283,7 +319,8 @@ function App() {
     <main className="shell">
       <Sidebar
         projectName={projectName}
-        view={view}
+        projectSlug={route.projectSlug}
+        view={route.view}
         setView={setView}
         theme={theme}
         setTheme={setTheme}
@@ -292,7 +329,7 @@ function App() {
         session={session}
       />
       <section className="workspace">
-        {view === "admin" ? (
+        {route.view === "admin" ? (
           <>
             <AdminToolbar
               query={query}
@@ -304,12 +341,13 @@ function App() {
             />
             <AdminBoard feedbacks={visibleFeedbacks} updateFeedback={updateFeedback} mergeTopDuplicate={mergeTopDuplicate} />
           </>
-        ) : view === "integrations" ? (
-          <IntegrationsView adminKey={adminKey || undefined} />
-        ) : view === "settings" ? (
+        ) : route.view === "integrations" ? (
+          <IntegrationsView projectSlug={route.projectSlug} adminKey={adminKey || undefined} />
+        ) : route.view === "settings" ? (
           <SettingsView
             project={project}
             session={session}
+            projectSlug={route.projectSlug}
             adminKey={adminKey || undefined}
             onProjectSaved={setProject}
           />
@@ -385,8 +423,65 @@ function PublicShell({
   );
 }
 
+function LandingView({
+  theme,
+  setTheme,
+  session,
+  openDemo
+}: {
+  theme: "light" | "dark";
+  setTheme: (theme: "light" | "dark") => void;
+  session: SessionResponse | null;
+  openDemo: () => void;
+}) {
+  return (
+    <main className="landingShell">
+      <header className="publicTopbar">
+        <button className="publicBrand" onClick={openDemo} aria-label="Otwórz przykładową roadmapę">
+          <Rocket size={23} />
+          <span>
+            <strong>Feedback Forge</strong>
+            <small>Roadmapy dla społeczności</small>
+          </span>
+        </button>
+        <nav className="publicNav" aria-label="Nawigacja">
+          <button className="active" onClick={openDemo}>Demo projektu</button>
+        </nav>
+        <div className="publicActions">
+          {session?.isAdmin ? (
+            <button className="publicAdminButton" onClick={() => { window.location.href = `/admin/projects/${DEFAULT_PROJECT_SLUG}`; }}>
+              <KanbanSquare size={16} /> Panel admina
+            </button>
+          ) : session?.discordOAuthConfigured ? (
+            <a className="publicLoginButton" href={discordLoginUrl()}>
+              <LogIn size={16} /> Zaloguj
+            </a>
+          ) : null}
+          <button
+            className="themeToggle"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            title={theme === "dark" ? "Jasny motyw" : "Ciemny motyw"}
+          >
+            {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
+          </button>
+        </div>
+      </header>
+      <section className="landingHero">
+        <div>
+          <h1>Jedna roadmapa dla każdej społeczności.</h1>
+          <p>Udostępniaj graczom i użytkownikom osobny link w formacie `/p/nazwa-projektu`, a zaplecze trzymaj pod `/admin/projects/nazwa-projektu`.</p>
+          <button className="publicReportButton" onClick={openDemo}>
+            <ExternalLink size={16} /> Otwórz demo Orbit Chat
+          </button>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 function Sidebar({
   projectName,
+  projectSlug,
   view,
   setView,
   theme,
@@ -396,6 +491,7 @@ function Sidebar({
   session
 }: {
   projectName: string;
+  projectSlug: string;
   view: View;
   setView: (view: View) => void;
   theme: "light" | "dark";
@@ -411,7 +507,7 @@ function Sidebar({
 
   const handleLogout = async () => {
     await logout().catch(() => undefined);
-    window.location.href = "/board";
+    window.location.href = `/p/${projectSlug}`;
   };
 
   return (
@@ -829,13 +925,13 @@ function ChangelogView({
   );
 }
 
-function useAdminProjectSettings(adminKey?: string) {
+function useAdminProjectSettings(projectSlug: string, adminKey?: string) {
   const [settings, setSettings] = useState<ProjectSettingsResponse | null>(null);
   const [settingsError, setSettingsError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
-    fetchProjectSettings(adminKey)
+    fetchProjectSettings(projectSlug, adminKey)
       .then((data) => {
         if (isMounted) {
           setSettings(data);
@@ -849,18 +945,18 @@ function useAdminProjectSettings(adminKey?: string) {
     return () => {
       isMounted = false;
     };
-  }, [adminKey]);
+  }, [projectSlug, adminKey]);
 
   return { settings, settingsError, setSettings };
 }
 
-function IntegrationsView({ adminKey }: { adminKey?: string }) {
-  const { settings, settingsError, setSettings } = useAdminProjectSettings(adminKey);
+function IntegrationsView({ projectSlug, adminKey }: { projectSlug: string; adminKey?: string }) {
+  const { settings, settingsError, setSettings } = useAdminProjectSettings(projectSlug, adminKey);
   const discordConfig = settings?.integrations.find((item) => item.provider === "DISCORD")?.config ?? {};
   const githubConfig = settings?.integrations.find((item) => item.provider === "GITHUB")?.config ?? {};
   const widgetSnippet =
     settings?.instructions.widgetSnippet ??
-    `<script async src="${window.location.origin}/widget.js" data-project="${PROJECT_SLUG}"></script>`;
+    `<script async src="${window.location.origin}/widget.js" data-project="${projectSlug}"></script>`;
   const apiBaseUrl = settings?.instructions.apiBaseUrl ?? window.location.origin;
   const discordWebhookUrl = settings?.instructions.discordWebhookUrl ?? `${window.location.origin}/api/v1/webhooks/discord/suggest`;
   const githubWebhookUrl = settings?.instructions.githubWebhookUrl ?? `${window.location.origin}/api/v1/webhooks/github/issues`;
@@ -881,7 +977,7 @@ function IntegrationsView({ adminKey }: { adminKey?: string }) {
   const saveDiscord = async () => {
     setSaveState("Zapisuję Discord...");
     try {
-      const result = await updateIntegration("DISCORD", { enabled: true, config: { channelId: discordChannelId } }, adminKey);
+      const result = await updateIntegration(projectSlug, "DISCORD", { enabled: true, config: { channelId: discordChannelId } }, adminKey);
       setSettings((current) =>
         current
           ? {
@@ -902,7 +998,7 @@ function IntegrationsView({ adminKey }: { adminKey?: string }) {
   const saveGithub = async () => {
     setSaveState("Zapisuję GitHub...");
     try {
-      const result = await updateIntegration("GITHUB", { enabled: true, config: { repository: githubRepository } }, adminKey);
+      const result = await updateIntegration(projectSlug, "GITHUB", { enabled: true, config: { repository: githubRepository } }, adminKey);
       setSettings((current) =>
         current
           ? {
@@ -939,13 +1035,13 @@ function IntegrationsView({ adminKey }: { adminKey?: string }) {
             <input value={discordChannelId} onChange={(event) => setDiscordChannelId(event.target.value)} placeholder="np. 123456789012345678" />
           </label>
           <code>API_BASE_URL={apiBaseUrl}</code>
-          <code>PROJECT_SLUG={PROJECT_SLUG}</code>
+          <code>PROJECT_SLUG={projectSlug}</code>
           <code>DISCORD_BOT_TOKEN=wklej_token_bota</code>
           <code>DISCORD_CLIENT_ID=wklej_client_id_aplikacji</code>
           <code>DISCORD_GUILD_ID=opcjonalnie_id_serwera</code>
           <p>Webhook techniczny, jeśli kiedyś użyjesz własnej integracji zamiast bota: {discordWebhookUrl}</p>
           <button className="secondaryButton" onClick={() => void saveDiscord()}><Check size={16} /> Zapisz Discord</button>
-          <button className="secondaryButton" onClick={() => void copyText(`API_BASE_URL=${apiBaseUrl}\nPROJECT_SLUG=${PROJECT_SLUG}\nDISCORD_BOT_TOKEN=\nDISCORD_CLIENT_ID=\nDISCORD_GUILD_ID=`, "Skopiowano zmienne bota Discord")}><Copy size={16} /> Kopiuj zmienne bota</button>
+          <button className="secondaryButton" onClick={() => void copyText(`API_BASE_URL=${apiBaseUrl}\nPROJECT_SLUG=${projectSlug}\nDISCORD_BOT_TOKEN=\nDISCORD_CLIENT_ID=\nDISCORD_GUILD_ID=`, "Skopiowano zmienne bota Discord")}><Copy size={16} /> Kopiuj zmienne bota</button>
         </article>
         <article className="settingsCard">
           <h2><Link2 size={18} /> Web Widget</h2>
@@ -972,15 +1068,17 @@ function IntegrationsView({ adminKey }: { adminKey?: string }) {
 function SettingsView({
   project,
   session,
+  projectSlug,
   adminKey,
   onProjectSaved
 }: {
   project: Project | null;
   session: SessionResponse | null;
+  projectSlug: string;
   adminKey?: string;
   onProjectSaved: (project: Project) => void;
 }) {
-  const { settings, settingsError } = useAdminProjectSettings(adminKey);
+  const { settings, settingsError } = useAdminProjectSettings(projectSlug, adminKey);
   const currentProject = settings?.project ?? project;
   const [name, setName] = useState(currentProject?.name ?? "Orbit Chat");
   const [description, setDescription] = useState(currentProject?.description ?? "");
@@ -1004,6 +1102,7 @@ function SettingsView({
     setSaveState("Zapisuję ustawienia...");
     try {
       const result = await updateProjectSettings(
+        projectSlug,
         {
           name,
           description,

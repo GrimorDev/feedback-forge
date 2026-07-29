@@ -1,7 +1,6 @@
 import type { Category, Feedback, Integration, Project, Source, Status } from "../types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
-const PROJECT_SLUG = import.meta.env.VITE_PROJECT_SLUG ?? "orbit-chat";
 
 type ApiOptions = {
   adminKey?: string;
@@ -63,39 +62,40 @@ export async function fetchSession() {
   return apiFetch<SessionResponse>("/api/v1/auth/me");
 }
 
-export async function fetchPublicBoard() {
-  return apiFetch<BoardResponse>(`/api/v1/projects/${PROJECT_SLUG}/board`);
+export async function fetchPublicBoard(projectSlug: string) {
+  return apiFetch<BoardResponse>(`/api/v1/projects/${projectSlug}/board`);
 }
 
-export async function fetchChangelog() {
-  return apiFetch<BoardResponse>(`/api/v1/projects/${PROJECT_SLUG}/changelog`);
+export async function fetchChangelog(projectSlug: string) {
+  return apiFetch<BoardResponse>(`/api/v1/projects/${projectSlug}/changelog`);
 }
 
-export async function fetchAdminFeedbacks(adminKey?: string, query?: { status?: Status | "ALL"; q?: string }) {
-  const params = new URLSearchParams({ projectSlug: PROJECT_SLUG, take: "100" });
+export async function fetchAdminFeedbacks(projectSlug: string, adminKey?: string, query?: { status?: Status | "ALL"; q?: string }) {
+  const params = new URLSearchParams({ projectSlug, take: "100" });
   if (query?.status && query.status !== "ALL") params.set("status", query.status);
   if (query?.q) params.set("q", query.q);
   return apiFetch<{ feedbacks: Feedback[] }>(`/api/v1/admin/feedbacks?${params.toString()}`, {}, { adminKey });
 }
 
-export async function fetchProjectSettings(adminKey?: string) {
-  return apiFetch<ProjectSettingsResponse>(`/api/v1/admin/projects/${PROJECT_SLUG}/settings`, {}, { adminKey });
+export async function fetchProjectSettings(projectSlug: string, adminKey?: string) {
+  return apiFetch<ProjectSettingsResponse>(`/api/v1/admin/projects/${projectSlug}/settings`, {}, { adminKey });
 }
 
 export async function updateProjectSettings(
+  projectSlug: string,
   input: Partial<Pick<Project, "name" | "description" | "customDomain" | "publicRoadmap" | "requireLoginToVote" | "moderatorDiscordIds">>,
   adminKey?: string
 ) {
   return apiFetch<{ project: Project }>(
-    `/api/v1/admin/projects/${PROJECT_SLUG}/settings`,
+    `/api/v1/admin/projects/${projectSlug}/settings`,
     { method: "PATCH", body: JSON.stringify(input) },
     { adminKey }
   );
 }
 
-export async function updateIntegration(provider: Source, input: { enabled: boolean; config: Record<string, unknown> }, adminKey?: string) {
+export async function updateIntegration(projectSlug: string, provider: Source, input: { enabled: boolean; config: Record<string, unknown> }, adminKey?: string) {
   return apiFetch<{ integration: Integration }>(
-    `/api/v1/admin/projects/${PROJECT_SLUG}/integrations/${provider}`,
+    `/api/v1/admin/projects/${projectSlug}/integrations/${provider}`,
     { method: "PUT", body: JSON.stringify(input) },
     { adminKey }
   );
@@ -118,15 +118,17 @@ export async function mergeFeedback(targetId: string, duplicateId: string, admin
 }
 
 export async function createPublicFeedback(input: {
+  projectSlug: string;
   title: string;
   description: string;
   category: Category;
   source: Source;
 }) {
-  return apiFetch<{ feedback: Feedback }>(`/api/v1/projects/${PROJECT_SLUG}/feedback`, {
+  const { projectSlug, ...payload } = input;
+  return apiFetch<{ feedback: Feedback }>(`/api/v1/projects/${projectSlug}/feedback`, {
     method: "POST",
     body: JSON.stringify({
-      ...input,
+      ...payload,
       name: "Community member",
       email: `visitor-${crypto.randomUUID()}@feedback.local`
     })

@@ -32,8 +32,16 @@ The app is exposed on `API_PORT` (`3010` by default in Docker) and serves both:
 
 - API: `/api/v1/...`
 - frontend build: `/`
-- public board: `/board`
-- private admin panel: `/admin`
+- public project roadmap: `/p/:projectSlug`
+- public project changelog: `/p/:projectSlug/changelog`
+- private project admin panel: `/admin/projects/:projectSlug`
+- private project integrations: `/admin/projects/:projectSlug/integrations`
+- private project settings: `/admin/projects/:projectSlug/settings`
+
+Example project URLs:
+
+- `http://localhost:3010/p/orbit-chat`
+- `http://localhost:3010/admin/projects/orbit-chat`
 
 Optional seed after first deploy:
 

@@ -126,7 +126,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     await createSession(reply, user.id);
     reply.clearCookie("ff_oauth_state", { path: "/api/v1/auth/discord" });
 
-    return reply.redirect(user.role === "ADMIN" ? "/admin" : "/board");
+    return reply.redirect(user.role === "ADMIN" ? `/admin/projects/${config.defaultProjectSlug}` : `/p/${config.defaultProjectSlug}`);
   });
 
   app.post("/api/v1/auth/logout", async (request, reply) => {

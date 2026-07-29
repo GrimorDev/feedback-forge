@@ -8,6 +8,7 @@ export const config = {
     process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/feedback_forge",
   corsOrigin: process.env.CORS_ORIGIN ?? "*",
   adminApiKey: process.env.ADMIN_API_KEY,
+  defaultProjectSlug: process.env.DEFAULT_PROJECT_SLUG ?? process.env.PROJECT_SLUG ?? "orbit-chat",
   publicBaseUrl: process.env.PUBLIC_BASE_URL ?? `http://localhost:${process.env.PORT ?? 3000}`,
   sessionCookieName: process.env.SESSION_COOKIE_NAME ?? "ff_session",
   cookieSecure:
