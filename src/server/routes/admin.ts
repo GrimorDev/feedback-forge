@@ -50,6 +50,7 @@ export async function registerAdminRoutes(app: FastifyInstance) {
       project,
       integrations: project.integrations,
       instructions: {
+        apiBaseUrl: config.publicBaseUrl,
         discordWebhookUrl: `${config.publicBaseUrl}/api/v1/webhooks/discord/suggest`,
         githubWebhookUrl: `${config.publicBaseUrl}/api/v1/webhooks/github/issues`,
         widgetSnippet: `<script async src="${config.publicBaseUrl}/widget.js" data-project="${project.slug}"></script>`

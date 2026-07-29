@@ -52,6 +52,7 @@ export type ProjectSettingsResponse = {
   project: Project;
   integrations: Integration[];
   instructions: {
+    apiBaseUrl: string;
     discordWebhookUrl: string;
     githubWebhookUrl: string;
     widgetSnippet: string;

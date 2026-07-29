@@ -755,6 +755,7 @@ function IntegrationsView({ adminKey }: { adminKey?: string }) {
   const widgetSnippet =
     settings?.instructions.widgetSnippet ??
     `<script async src="${window.location.origin}/widget.js" data-project="${PROJECT_SLUG}"></script>`;
+  const apiBaseUrl = settings?.instructions.apiBaseUrl ?? window.location.origin;
   const discordWebhookUrl = settings?.instructions.discordWebhookUrl ?? `${window.location.origin}/api/v1/webhooks/discord/suggest`;
   const githubWebhookUrl = settings?.instructions.githubWebhookUrl ?? `${window.location.origin}/api/v1/webhooks/github/issues`;
   const [discordChannelId, setDiscordChannelId] = useState("");
@@ -826,15 +827,19 @@ function IntegrationsView({ adminKey }: { adminKey?: string }) {
       <div className="settingsGrid">
         <article className="settingsCard">
           <h2><RadioTower size={18} /> Bot Discorda</h2>
-          <p>Bot wysyła zgłoszenia na endpoint poniżej. W Portainerze ustaw te same wartości w zmiennych środowiskowych bota.</p>
+          <p>Gotowy skrypt `bot/discord-suggest.js` wymaga tych zmiennych w kontenerze bota. `API_BASE_URL` to adres Twojej aplikacji bez końcówki `/api`.</p>
           <label>
             ID kanału zgłoszeń
             <input value={discordChannelId} onChange={(event) => setDiscordChannelId(event.target.value)} placeholder="np. 123456789012345678" />
           </label>
-          <code>FEEDBACK_API_URL={discordWebhookUrl}</code>
+          <code>API_BASE_URL={apiBaseUrl}</code>
           <code>PROJECT_SLUG={PROJECT_SLUG}</code>
+          <code>DISCORD_BOT_TOKEN=wklej_token_bota</code>
+          <code>DISCORD_CLIENT_ID=wklej_client_id_aplikacji</code>
+          <code>DISCORD_GUILD_ID=opcjonalnie_id_serwera</code>
+          <p>Webhook techniczny, jeśli kiedyś użyjesz własnej integracji zamiast bota: {discordWebhookUrl}</p>
           <button className="secondaryButton" onClick={() => void saveDiscord()}><Check size={16} /> Zapisz Discord</button>
-          <button className="secondaryButton" onClick={() => void copyText(discordWebhookUrl, "Skopiowano endpoint Discorda")}><Copy size={16} /> Kopiuj endpoint</button>
+          <button className="secondaryButton" onClick={() => void copyText(`API_BASE_URL=${apiBaseUrl}\nPROJECT_SLUG=${PROJECT_SLUG}\nDISCORD_BOT_TOKEN=\nDISCORD_CLIENT_ID=\nDISCORD_GUILD_ID=`, "Skopiowano zmienne bota Discord")}><Copy size={16} /> Kopiuj zmienne bota</button>
         </article>
         <article className="settingsCard">
           <h2><Link2 size={18} /> Web Widget</h2>

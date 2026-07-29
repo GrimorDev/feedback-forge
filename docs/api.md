@@ -40,6 +40,19 @@ Creating feedback additionally accepts `title`, `description`, `category`, `sour
 | `PATCH` | `/api/v1/admin/projects/:slug/settings` | Save project name, description, custom domain, privacy, and moderator Discord IDs. |
 | `PUT` | `/api/v1/admin/projects/:slug/integrations/:provider` | Save integration config for `DISCORD`, `WEB_WIDGET`, `GITHUB`, or `API`. |
 
+The settings response also returns generated setup values:
+
+```json
+{
+  "instructions": {
+    "apiBaseUrl": "https://feedback.example.com",
+    "discordWebhookUrl": "https://feedback.example.com/api/v1/webhooks/discord/suggest",
+    "githubWebhookUrl": "https://feedback.example.com/api/v1/webhooks/github/issues",
+    "widgetSnippet": "<script async src=\"https://feedback.example.com/widget.js\" data-project=\"orbit-chat\"></script>"
+  }
+}
+```
+
 Merge payload:
 
 ```json
