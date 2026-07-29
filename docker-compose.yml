@@ -1,0 +1,63 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: feedback-forge-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-feedback_forge}
+      POSTGRES_USER: ${POSTGRES_USER:-feedback}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-feedback_password_change_me}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: feedback-forge-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-feedback}:${POSTGRES_PASSWORD:-feedback_password_change_me}@postgres:5432/${POSTGRES_DB:-feedback_forge}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-change-me-before-production}
+      ENABLE_PAYMENTS: ${ENABLE_PAYMENTS:-false}
+    ports:
+      - "${API_PORT:-3000}:3000"
+    command: sh -c "npx prisma migrate deploy && node server-dist/src/server.js"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  seed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    profiles: ["seed"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-feedback}:${POSTGRES_PASSWORD:-feedback_password_change_me}@postgres:5432/${POSTGRES_DB:-feedback_forge}
+    command: sh -c "npx prisma migrate deploy && node server-dist/prisma/seed.js"
+    restart: "no"
+
+volumes:
+  postgres_data:

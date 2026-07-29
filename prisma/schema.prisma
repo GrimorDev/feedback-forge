@@ -1,0 +1,196 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+enum Category {
+  BUG
+  FEATURE
+  IMPROVEMENT
+}
+
+enum Status {
+  TRIAGE
+  UNDER_REVIEW
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+}
+
+enum Source {
+  WEB_WIDGET
+  DISCORD
+  GITHUB
+  API
+}
+
+enum Plan {
+  FREE
+  PRO
+  EARLY_ADOPTER
+}
+
+enum NotificationChannel {
+  EMAIL
+  DISCORD
+}
+
+model User {
+  id               String    @id @default(uuid())
+  email            String    @unique
+  name             String?
+  avatarUrl        String?
+  discordId        String?   @unique
+  githubId         String?   @unique
+  role             Role      @default(MEMBER)
+  plan             Plan      @default(EARLY_ADOPTER)
+  lifetimeFree     Boolean   @default(true)
+  stripeCustomerId String?   @unique
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  ownedProjects Project[] @relation("ProjectOwner")
+  feedbacks     Feedback[] @relation("SubmittedFeedbacks")
+  votes         Vote[]
+  comments      Comment[]
+  subscription  Subscription?
+}
+
+model Project {
+  id           String   @id @default(uuid())
+  name         String
+  slug         String   @unique
+  description  String?
+  customDomain String?  @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  ownerId String
+  owner   User   @relation("ProjectOwner", fields: [ownerId], references: [id])
+
+  feedbacks    Feedback[]
+  integrations Integration[]
+  webhooks     OutboundWebhook[]
+}
+
+model Feedback {
+  id           String   @id @default(uuid())
+  title        String
+  description  String
+  status       Status   @default(TRIAGE)
+  category     Category @default(FEATURE)
+  source       Source   @default(WEB_WIDGET)
+  tags         String[] @default([])
+  priority     Int      @default(1)
+  upvotesCount Int      @default(0)
+  externalUrl  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   User   @relation("SubmittedFeedbacks", fields: [authorId], references: [id])
+
+  mergedIntoId String?
+  mergedInto   Feedback?  @relation("FeedbackMerge", fields: [mergedIntoId], references: [id])
+  mergedItems  Feedback[] @relation("FeedbackMerge")
+
+  votes    Vote[]
+  comments Comment[]
+  events   NotificationEvent[]
+
+  @@index([projectId, status])
+  @@index([projectId, upvotesCount(sort: Desc)])
+  @@index([projectId, category, priority])
+}
+
+model Vote {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  feedbackId String
+  feedback   Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, feedbackId])
+}
+
+model Comment {
+  id         String   @id @default(uuid())
+  content    String
+  isInternal Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  feedbackId String
+  feedback   Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+}
+
+model Integration {
+  id        String   @id @default(uuid())
+  provider  Source
+  config    Json
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, provider])
+}
+
+model OutboundWebhook {
+  id        String   @id @default(uuid())
+  url       String
+  secret    String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model NotificationEvent {
+  id        String              @id @default(uuid())
+  channel   NotificationChannel
+  recipient String
+  message   String
+  sentAt    DateTime?
+  createdAt DateTime            @default(now())
+
+  feedbackId String
+  feedback   Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@index([feedbackId, createdAt])
+}
+
+model Subscription {
+  id                   String   @id @default(uuid())
+  provider             String   @default("stripe")
+  providerCustomerId   String
+  providerSubscriptionId String? @unique
+  status               String
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

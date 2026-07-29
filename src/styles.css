@@ -1,0 +1,789 @@
+:root {
+  color-scheme: light;
+  --bg: #f4f7fb;
+  --bg-soft: #eef3f8;
+  --surface: rgba(255, 255, 255, 0.88);
+  --surface-strong: #ffffff;
+  --surface-muted: #f8fafc;
+  --border: #d9e2ec;
+  --border-strong: #c7d2df;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --text-soft: #94a3b8;
+  --primary: #0f766e;
+  --primary-strong: #0d9488;
+  --primary-soft: #ccfbf1;
+  --warning: #f59e0b;
+  --success: #16a34a;
+  --danger: #dc2626;
+  --shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+  --shadow-soft: 0 10px 28px rgba(15, 23, 42, 0.06);
+  --radius: 8px;
+  --radius-sm: 6px;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #080b12;
+  --bg-soft: #0d1320;
+  --surface: rgba(15, 23, 42, 0.82);
+  --surface-strong: #111827;
+  --surface-muted: #0b1220;
+  --border: #243244;
+  --border-strong: #334155;
+  --text: #e5edf6;
+  --text-muted: #9aa8bb;
+  --text-soft: #6b7a90;
+  --primary: #14b8a6;
+  --primary-strong: #2dd4bf;
+  --primary-soft: rgba(20, 184, 166, 0.14);
+  --warning: #fbbf24;
+  --success: #22c55e;
+  --danger: #f87171;
+  --shadow: 0 22px 60px rgba(0, 0, 0, 0.36);
+  --shadow-soft: 0 14px 36px rgba(0, 0, 0, 0.28);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  scrollbar-gutter: stable;
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(20, 184, 166, 0.14), transparent 34rem),
+    radial-gradient(circle at 85% 10%, rgba(56, 189, 248, 0.1), transparent 30rem),
+    var(--bg);
+  margin: 0;
+  min-height: 100vh;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button,
+input,
+select,
+textarea {
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.22);
+  outline: 0;
+}
+
+.shell {
+  min-height: 100vh;
+}
+
+.topbar {
+  align-items: center;
+  backdrop-filter: blur(18px);
+  background: color-mix(in srgb, var(--surface-strong) 88%, transparent);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  min-height: 72px;
+  padding: 12px clamp(16px, 3vw, 40px);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.brand,
+.headerActions,
+.segmented,
+.segmented button,
+.themeToggle,
+.search,
+.cardMeta,
+.chips,
+.cardActions,
+.metrics,
+.metricPill,
+.integration,
+.sidePanel h2,
+.publicCard,
+.publicCard button,
+.votes,
+.laneHeader {
+  align-items: center;
+  display: flex;
+}
+
+.brand {
+  gap: 12px;
+  min-width: 0;
+}
+
+.brand svg {
+  color: var(--primary-strong);
+  flex: 0 0 auto;
+}
+
+.brand strong,
+.brand span {
+  display: block;
+}
+
+.brand strong {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.brand span {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.headerActions {
+  gap: 10px;
+}
+
+.segmented {
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  gap: 4px;
+  padding: 4px;
+}
+
+.segmented button {
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  gap: 8px;
+  justify-content: center;
+  min-height: 36px;
+  min-width: 118px;
+  padding: 0 14px;
+}
+
+.segmented button.active {
+  background: var(--surface-strong);
+  box-shadow: var(--shadow-soft);
+  color: var(--text);
+}
+
+.themeToggle,
+.iconButton {
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  height: 42px;
+  justify-content: center;
+  min-width: 42px;
+}
+
+.themeToggle:hover,
+.iconButton:hover,
+.publicCard button:hover {
+  border-color: var(--primary);
+  color: var(--primary-strong);
+  transform: translateY(-1px);
+}
+
+.workspace {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  margin: 0 auto;
+  max-width: 1720px;
+  padding: 24px clamp(16px, 3vw, 40px) 42px;
+}
+
+.primaryPane {
+  min-width: 0;
+}
+
+.toolbar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+  margin-bottom: 18px;
+  padding: 12px;
+}
+
+.search {
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 12px;
+}
+
+.search input,
+.submitBox input,
+.submitBox textarea,
+.toolbar select,
+.submitBox select,
+.feedbackCard select {
+  border: 0;
+  color: var(--text);
+  outline: 0;
+}
+
+.search input {
+  background: transparent;
+  min-width: 0;
+  width: 100%;
+}
+
+.search input::placeholder,
+.submitBox input::placeholder,
+.submitBox textarea::placeholder {
+  color: var(--text-soft);
+}
+
+.toolbar select,
+.submitBox select,
+.feedbackCard select {
+  appearance: none;
+  background:
+    linear-gradient(45deg, transparent 50%, var(--text-muted) 50%) calc(100% - 16px) 19px / 6px 6px no-repeat,
+    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%) calc(100% - 10px) 19px / 6px 6px no-repeat,
+    var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  min-height: 44px;
+  padding: 0 34px 0 12px;
+}
+
+.kanban {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 275px), 1fr));
+}
+
+.lane {
+  background: color-mix(in srgb, var(--surface) 84%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+  min-width: 0;
+  padding: 12px;
+}
+
+.laneHeader {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  justify-content: space-between;
+  letter-spacing: 0.04em;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
+
+.laneHeader b {
+  background: var(--primary-soft);
+  border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
+  border-radius: 999px;
+  color: var(--primary-strong);
+  min-width: 28px;
+  padding: 4px 9px;
+  text-align: center;
+}
+
+.laneStack {
+  display: grid;
+  gap: 12px;
+}
+
+.emptyLane {
+  align-items: center;
+  background: var(--surface-muted);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-soft);
+  display: flex;
+  font-size: 13px;
+  justify-content: center;
+  min-height: 92px;
+}
+
+.feedbackCard,
+.publicCard,
+.submitBox,
+.sidePanel section {
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+}
+
+.feedbackCard {
+  overflow: hidden;
+  padding: 14px;
+}
+
+.feedbackCard:hover,
+.publicCard:hover,
+.submitBox:hover,
+.sidePanel section:hover {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+}
+
+.cardMeta {
+  color: var(--text-muted);
+  font-size: 12px;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.source {
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  max-width: 148px;
+  overflow: hidden;
+  padding: 5px 8px;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.source-discord {
+  background: #5865f2;
+}
+
+.source-web_widget {
+  background: #0f766e;
+}
+
+.source-github {
+  background: #24292f;
+}
+
+.source-api {
+  background: #b45309;
+}
+
+.feedbackCard h3,
+.publicCard h3 {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.35;
+  margin: 12px 0 8px;
+  overflow-wrap: anywhere;
+}
+
+.feedbackCard p,
+.publicCard p,
+.sidePanel p,
+.portalIntro p {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.chips {
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 13px 0;
+}
+
+.chips span {
+  align-items: center;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  display: inline-flex;
+  font-size: 12px;
+  gap: 4px;
+  max-width: 100%;
+  min-height: 26px;
+  overflow: hidden;
+  padding: 0 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardActions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 52px minmax(72px, 1fr) minmax(122px, 1.2fr) 38px;
+}
+
+.votes {
+  color: var(--primary-strong);
+  font-size: 13px;
+  font-weight: 900;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cardActions input {
+  accent-color: var(--primary);
+  min-width: 0;
+  width: 100%;
+}
+
+.cardActions select {
+  min-width: 0;
+}
+
+.iconButton {
+  display: inline-flex;
+  height: 38px;
+  min-width: 38px;
+}
+
+.portal {
+  min-width: 0;
+}
+
+.portalIntro {
+  align-items: end;
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-bottom: 18px;
+}
+
+.portalIntro h1 {
+  color: var(--text);
+  font-size: clamp(32px, 6vw, 64px);
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 0.95;
+  margin: 0 0 14px;
+  max-width: 680px;
+}
+
+.portalIntro p {
+  max-width: 650px;
+}
+
+.metrics {
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  max-width: 360px;
+}
+
+.metrics span {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  display: inline-flex;
+  font-size: 13px;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.submitBox {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 14px;
+}
+
+.submitBox input,
+.submitBox textarea {
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 13px;
+  width: 100%;
+}
+
+.submitBox textarea {
+  min-height: 92px;
+  resize: vertical;
+}
+
+.submitBox div {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(140px, 180px) minmax(140px, 180px) minmax(160px, 1fr);
+}
+
+.submitBox button {
+  align-items: center;
+  background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+  border: 0;
+  border-radius: var(--radius);
+  color: #ffffff;
+  display: inline-flex;
+  gap: 8px;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+}
+
+.submitBox button:hover {
+  filter: brightness(1.04);
+  transform: translateY(-1px);
+}
+
+.roadmap {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.roadmapColumn {
+  min-width: 0;
+}
+
+.roadmapColumn h2 {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  margin: 0 0 10px;
+}
+
+.publicCard {
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.publicCard button {
+  background: var(--primary-soft);
+  border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
+  border-radius: var(--radius);
+  color: var(--primary-strong);
+  flex: 0 0 50px;
+  flex-direction: column;
+  font-weight: 900;
+  gap: 2px;
+  min-height: 52px;
+  padding: 6px;
+}
+
+.publicCard div {
+  min-width: 0;
+}
+
+.publicCard span {
+  color: var(--primary-strong);
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 900;
+  margin-top: 10px;
+}
+
+.sidePanel {
+  display: grid;
+  gap: 14px;
+  height: fit-content;
+  position: sticky;
+  top: 96px;
+}
+
+.sidePanel section {
+  padding: 16px;
+}
+
+.sidePanel h2 {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 900;
+  gap: 8px;
+  margin: 0 0 13px;
+}
+
+.sidePanel h2 svg {
+  color: var(--primary-strong);
+}
+
+.sidePanel dl {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.sidePanel dl div {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.sidePanel dt {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.sidePanel dd {
+  color: var(--text);
+  font-weight: 900;
+  margin: 0;
+}
+
+.integration {
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 13px;
+  gap: 8px;
+  margin-top: 8px;
+  min-height: 38px;
+  padding: 0 10px;
+}
+
+.paymentState,
+.notification {
+  background: color-mix(in srgb, var(--warning) 12%, var(--surface-strong));
+  border: 1px solid color-mix(in srgb, var(--warning) 42%, var(--border));
+  border-radius: var(--radius);
+  color: color-mix(in srgb, var(--warning) 74%, var(--text));
+  font-weight: 900;
+  margin-bottom: 9px !important;
+  padding: 10px;
+}
+
+.notification {
+  background: color-mix(in srgb, var(--success) 12%, var(--surface-strong));
+  border-color: color-mix(in srgb, var(--success) 40%, var(--border));
+  color: color-mix(in srgb, var(--success) 72%, var(--text));
+  font-size: 13px;
+}
+
+@media (max-width: 1280px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .sidePanel {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    position: static;
+  }
+}
+
+@media (max-width: 980px) {
+  .sidePanel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .roadmap {
+    grid-template-columns: 1fr;
+  }
+
+  .portalIntro {
+    align-items: start;
+    grid-template-columns: 1fr;
+  }
+
+  .metrics {
+    justify-content: flex-start;
+    max-width: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .topbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .headerActions {
+    align-items: stretch;
+    display: grid;
+    grid-template-columns: 1fr 42px;
+  }
+
+  .segmented {
+    min-width: 0;
+  }
+
+  .segmented button {
+    min-width: 0;
+    padding: 0 10px;
+  }
+
+  .workspace {
+    padding: 16px 12px 32px;
+  }
+
+  .toolbar,
+  .submitBox div,
+  .sidePanel {
+    grid-template-columns: 1fr;
+  }
+
+  .kanban {
+    grid-template-columns: 1fr;
+  }
+
+  .cardActions {
+    grid-template-columns: 48px minmax(90px, 1fr) 38px;
+  }
+
+  .cardActions select {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 430px) {
+  .brand strong {
+    font-size: 16px;
+  }
+
+  .portalIntro h1 {
+    font-size: 36px;
+  }
+
+  .metrics span {
+    width: 100%;
+  }
+
+  .publicCard {
+    align-items: stretch;
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+}
