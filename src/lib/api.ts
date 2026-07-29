@@ -40,6 +40,7 @@ export type SessionResponse = {
     role: "ADMIN" | "MEMBER";
   } | null;
   isAdmin: boolean;
+  discordOAuthConfigured: boolean;
 };
 
 export type BoardResponse = {

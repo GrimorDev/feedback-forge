@@ -1,4 +1,5 @@
 import type { Prisma, User } from "@prisma/client";
+import { ApiError } from "./errors.js";
 import { prisma } from "./prisma.js";
 
 type Identity = {
@@ -62,9 +63,15 @@ export async function getOrCreateMember(identity: Identity): Promise<User> {
 }
 
 export async function ensureProject(slug: string) {
-  return prisma.project.findUniqueOrThrow({
+  const project = await prisma.project.findUnique({
     where: { slug }
   });
+
+  if (!project) {
+    throw new ApiError(404, `Project "${slug}" not found. Run the seed command or create the project first.`);
+  }
+
+  return project;
 }
 
 export function publicFeedbackInclude() {
@@ -121,4 +128,3 @@ export async function createCompletedNotification(feedbackId: string) {
     }
   });
 }
-

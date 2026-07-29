@@ -72,7 +72,7 @@ function App() {
   useEffect(() => {
     fetchSession()
       .then(setSession)
-      .catch(() => setSession({ user: null, isAdmin: false }));
+      .catch(() => setSession({ user: null, isAdmin: false, discordOAuthConfigured: false }));
   }, []);
 
   useEffect(() => {
@@ -80,7 +80,7 @@ function App() {
       void loadData();
     }, 180);
     return () => window.clearTimeout(timeout);
-  }, [view, selectedStatus, query, adminKey]);
+  }, [view, selectedStatus, query, adminKey, session?.isAdmin]);
 
   const setView = (nextView: View) => {
     const path = nextView === "admin" ? "/admin" : "/board";
@@ -93,6 +93,11 @@ function App() {
     setError(null);
     try {
       if (view === "admin") {
+        if (!session?.isAdmin && !adminKey) {
+          setFeedbacks([]);
+          return;
+        }
+
         const data = await fetchAdminFeedbacks(adminKey || undefined, { status: selectedStatus, q: query });
         setFeedbacks(data.feedbacks);
         setProject((current) => current ?? {
@@ -200,6 +205,19 @@ function App() {
   const projectName = project?.name ?? "Orbit Chat";
   const isAdmin = session?.isAdmin || Boolean(adminKey);
 
+  if (view === "admin" && !isAdmin) {
+    return (
+      <main className="authShell">
+        <AdminGate
+          adminKey={adminKey}
+          setAdminKey={setAdminKey}
+          error={error}
+          discordOAuthConfigured={session?.discordOAuthConfigured ?? false}
+        />
+      </main>
+    );
+  }
+
   return (
     <main className="shell">
       <Sidebar
@@ -213,9 +231,7 @@ function App() {
         session={session}
       />
       <section className="workspace">
-        {view === "admin" && !isAdmin ? (
-          <AdminGate adminKey={adminKey} setAdminKey={setAdminKey} error={error} />
-        ) : view === "admin" ? (
+        {view === "admin" ? (
           <>
             <AdminToolbar
               query={query}
@@ -335,21 +351,27 @@ function Sidebar({
 function AdminGate({
   adminKey,
   setAdminKey,
-  error
+  error,
+  discordOAuthConfigured
 }: {
   adminKey: string;
   setAdminKey: (value: string) => void;
   error: string | null;
+  discordOAuthConfigured: boolean;
 }) {
   return (
     <section className="authPanel">
       <div>
         <h1>Panel admina</h1>
-        <p>Zaloguj się Discordem jako właściciel projektu albo użyj awaryjnego klucza admina z Portainera.</p>
+        <p>Zaloguj się przed wejściem do panelu. Publiczna roadmapa pozostaje dostępna bez konta.</p>
       </div>
-      <a className="loginButton" href={discordLoginUrl()}>
-        <LogIn size={18} /> Zaloguj przez Discord
-      </a>
+      {discordOAuthConfigured ? (
+        <a className="loginButton" href={discordLoginUrl()}>
+          <LogIn size={18} /> Zaloguj przez Discord
+        </a>
+      ) : (
+        <p className="infoBanner">Discord OAuth nie jest skonfigurowany. Ustaw zmienne w Portainerze albo użyj klucza admina.</p>
+      )}
       <label className="adminKeyBox">
         <span>Awaryjny ADMIN_API_KEY</span>
         <input

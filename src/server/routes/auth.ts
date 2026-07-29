@@ -36,12 +36,13 @@ export async function registerAuthRoutes(app: FastifyInstance) {
             role: user.role
           }
         : null,
-      isAdmin: isAdminUser(user)
+      isAdmin: isAdminUser(user),
+      discordOAuthConfigured: Boolean(config.discordClientId && config.discordClientSecret)
     };
   });
 
   app.get("/api/v1/auth/discord/start", async (_request, reply) => {
-    if (!config.discordClientId) {
+    if (!config.discordClientId || !config.discordClientSecret) {
       throw new ApiError(501, "Discord OAuth is not configured");
     }
 

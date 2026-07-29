@@ -39,7 +39,7 @@ services:
       ADMIN_DISCORD_IDS: ${ADMIN_DISCORD_IDS:-}
     ports:
       - "${API_PORT:-3010}:3000"
-    command: sh -c "npx prisma migrate deploy && node server-dist/src/server.js"
+    command: sh -c "npx prisma migrate deploy && node server-dist/prisma/seed.js && node server-dist/src/server.js"
     healthcheck:
       test:
         [

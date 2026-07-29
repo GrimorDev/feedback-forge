@@ -303,6 +303,17 @@ textarea:focus-visible {
   padding: 18px 20px;
 }
 
+.authShell {
+  align-items: center;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(20, 184, 166, 0.14), transparent 34rem),
+    var(--bg);
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
 .toolbar {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -383,7 +394,6 @@ textarea:focus-visible {
   display: grid;
   gap: 16px;
   justify-self: center;
-  margin-top: 8vh;
   max-width: 560px;
   padding: 24px;
   width: 100%;
@@ -436,6 +446,7 @@ textarea:focus-visible {
   padding: 0 12px;
 }
 
+.infoBanner,
 .errorBanner {
   background: color-mix(in srgb, #ef4444 12%, var(--surface-strong));
   border: 1px solid color-mix(in srgb, #ef4444 38%, var(--border));
@@ -445,6 +456,12 @@ textarea:focus-visible {
   font-weight: 800;
   margin: 0 0 14px;
   padding: 10px 12px;
+}
+
+.infoBanner {
+  background: color-mix(in srgb, var(--primary) 12%, var(--surface-strong));
+  border-color: color-mix(in srgb, var(--primary) 38%, var(--border));
+  color: color-mix(in srgb, var(--primary-strong) 72%, var(--text));
 }
 
 .kanban {
