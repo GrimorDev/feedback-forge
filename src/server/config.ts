@@ -19,6 +19,7 @@ export const config = {
         : (process.env.PUBLIC_BASE_URL ?? "").startsWith("https://") || process.env.NODE_ENV === "production",
   discordClientId: process.env.DISCORD_CLIENT_ID,
   discordClientSecret: process.env.DISCORD_CLIENT_SECRET,
+  discordBotToken: process.env.DISCORD_BOT_TOKEN,
   discordRedirectUri: process.env.DISCORD_REDIRECT_URI,
   adminDiscordIds: (process.env.ADMIN_DISCORD_IDS ?? "")
     .split(",")

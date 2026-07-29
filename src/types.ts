@@ -29,6 +29,9 @@ export type Project = {
   customDomain?: string;
   publicRoadmap?: boolean;
   requireLoginToVote?: boolean;
+  requireDiscordAuth?: boolean;
+  discordGuildId?: string;
+  discordRoleId?: string;
   moderatorDiscordIds?: string[];
   ownerId: string;
   createdAt?: string;

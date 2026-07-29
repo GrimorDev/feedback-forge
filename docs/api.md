@@ -11,6 +11,7 @@ Feedback rows and vote rows both carry `projectId`; tags are stored on feedback 
 | --- | --- |
 | Public roadmap | `/p/:projectSlug` |
 | Public changelog | `/p/:projectSlug/changelog` |
+| Admin project dashboard | `/admin` |
 | Admin board | `/admin/projects/:projectSlug/board` |
 | Admin integrations | `/admin/projects/:projectSlug/wloty` |
 | Admin settings | `/admin/projects/:projectSlug/settings` |
@@ -56,7 +57,10 @@ Discord bot payload:
 
 Public protection:
 
-- `publicRoadmap=false` returns `403` for public board/changelog/submission.
+- `publicRoadmap=false` hides the project from future catalog/listing surfaces, but does not block a direct `/p/:slug` link.
+- `requireDiscordAuth=true` requires Discord login before viewing board/changelog or submitting from the web widget.
+- `discordGuildId` optionally restricts access to members of a Discord server.
+- `discordRoleId` optionally restricts access to members with a specific role inside that server.
 - `requireLoginToVote=true` requires an active session for `POST /api/v1/feedback/:id/vote`.
 - Public feedback creation is rate-limited to 3/hour per IP.
 - Voting is rate-limited to 10/minute per IP.
@@ -65,6 +69,8 @@ Public protection:
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
+| `GET` | `/api/v1/admin/projects` | List projects owned by or assigned to the current admin. |
+| `POST` | `/api/v1/admin/projects` | Create a new project and generate a unique slug. |
 | `GET` | `/api/v1/admin/feedbacks` | Triage inbox with status, category, query, and source filters. |
 | `PATCH` | `/api/v1/admin/feedbacks/:id` | Update status, category, tags, and priority. |
 | `POST` | `/api/v1/admin/feedbacks/:id/merge` | Merge a duplicate and move unique voters to the target. |
@@ -104,6 +110,9 @@ Project settings payload:
   "customDomain": "feedback.example.com",
   "publicRoadmap": true,
   "requireLoginToVote": false,
+  "requireDiscordAuth": true,
+  "discordGuildId": "123456789012345678",
+  "discordRoleId": "234567890123456789",
   "moderatorDiscordIds": ["71820491"]
 }
 ```

@@ -5,6 +5,7 @@ import { ApiError } from "../errors.js";
 import {
   adminFeedbackQuerySchema,
   createCommentSchema,
+  createProjectSchema,
   mergeFeedbackSchema,
   sourceSchema,
   updateFeedbackSchema,
@@ -29,7 +30,7 @@ async function getAdminContext(request: FastifyRequest): Promise<AdminContext> {
   }
 
   const user = await getSessionUser(request);
-  if (user?.role === "ADMIN") return { bypass: false, user };
+  if (user) return { bypass: false, user };
 
   throw new ApiError(401, "Unauthorized");
 }
@@ -42,6 +43,31 @@ function canAccessProject(context: AdminContext, project: Project) {
   if (context.bypass) return true;
   if (context.user.discordId && config.adminDiscordIds.includes(context.user.discordId)) return true;
   return project.ownerId === context.user.id || Boolean(context.user.discordId && project.moderatorDiscordIds.includes(context.user.discordId));
+}
+
+function slugify(value: string) {
+  const slug = value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+
+  return slug || "project";
+}
+
+async function uniqueProjectSlug(name: string) {
+  const base = slugify(name);
+  let slug = base;
+  let suffix = 2;
+
+  while (await prisma.project.findUnique({ where: { slug }, select: { id: true } })) {
+    slug = `${base}-${suffix}`;
+    suffix += 1;
+  }
+
+  return slug;
 }
 
 async function requireProjectAccess(request: FastifyRequest, slug: string) {
@@ -69,6 +95,41 @@ async function requireFeedbackAccess(request: FastifyRequest, feedbackId: string
 
 export async function registerAdminRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAdmin);
+
+  app.get("/api/v1/admin/projects", async (request) => {
+    const context = await getAdminContext(request);
+    const projects = await prisma.project.findMany({
+      where: context.bypass || (context.user.discordId && config.adminDiscordIds.includes(context.user.discordId))
+        ? undefined
+        : {
+            OR: [
+              { ownerId: context.user.id },
+              ...(context.user.discordId ? [{ moderatorDiscordIds: { has: context.user.discordId } }] : [])
+            ]
+          },
+      orderBy: { updatedAt: "desc" }
+    });
+
+    return { projects };
+  });
+
+  app.post("/api/v1/admin/projects", async (request, reply) => {
+    const context = await getAdminContext(request);
+    if (context.bypass) throw new ApiError(401, "Create a project from a Discord admin session");
+
+    const body = createProjectSchema.parse(request.body);
+    const slug = await uniqueProjectSlug(body.name);
+    const project = await prisma.project.create({
+      data: {
+        name: body.name,
+        slug,
+        description: body.description ?? "Publiczna roadmapa społeczności.",
+        ownerId: context.user.id
+      }
+    });
+
+    return reply.status(201).send({ project });
+  });
 
   app.get("/api/v1/admin/projects/:slug/settings", async (request) => {
     const params = request.params as { slug: string };
@@ -109,6 +170,8 @@ export async function registerAdminRoutes(app: FastifyInstance) {
         ...body,
         description: body.description === undefined ? undefined : body.description,
         customDomain,
+        discordGuildId: body.discordGuildId === undefined ? undefined : body.discordGuildId?.trim() || null,
+        discordRoleId: body.discordRoleId === undefined ? undefined : body.discordRoleId?.trim() || null,
         moderatorDiscordIds: body.moderatorDiscordIds?.map((id) => id.trim()).filter(Boolean)
       }
     });

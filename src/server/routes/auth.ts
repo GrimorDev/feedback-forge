@@ -41,11 +41,13 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     };
   });
 
-  app.get("/api/v1/auth/discord/start", async (_request, reply) => {
+  app.get("/api/v1/auth/discord/start", async (request, reply) => {
     if (!config.discordClientId || !config.discordClientSecret) {
       throw new ApiError(501, "Discord OAuth is not configured");
     }
 
+    const query = request.query as { returnTo?: string };
+    const returnTo = query.returnTo?.startsWith("/") ? query.returnTo : undefined;
     const state = createOAuthState();
     const redirectUri = config.discordRedirectUri ?? `${config.publicBaseUrl}/api/v1/auth/discord/callback`;
     const url = new URL("https://discord.com/oauth2/authorize");
@@ -62,6 +64,15 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       path: "/api/v1/auth/discord",
       maxAge: 10 * 60
     });
+    if (returnTo) {
+      reply.setCookie("ff_oauth_return_to", returnTo, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: config.cookieSecure,
+        path: "/api/v1/auth/discord",
+        maxAge: 10 * 60
+      });
+    }
 
     return reply.redirect(url.toString());
   });
@@ -124,9 +135,11 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     });
 
     await createSession(reply, user.id);
+    const returnTo = request.cookies.ff_oauth_return_to;
     reply.clearCookie("ff_oauth_state", { path: "/api/v1/auth/discord" });
+    reply.clearCookie("ff_oauth_return_to", { path: "/api/v1/auth/discord" });
 
-    return reply.redirect(user.role === "ADMIN" ? `/admin/projects/${config.defaultProjectSlug}/board` : `/p/${config.defaultProjectSlug}`);
+    return reply.redirect(returnTo?.startsWith("/") ? returnTo : user.role === "ADMIN" ? `/admin` : `/p/${config.defaultProjectSlug}`);
   });
 
   app.post("/api/v1/auth/logout", async (request, reply) => {

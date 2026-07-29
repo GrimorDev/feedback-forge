@@ -33,10 +33,12 @@ import "./styles.css";
 import type { Category, Feedback, Project, Source, Status } from "./types";
 import {
   BoardResponse,
+  createAdminProject,
   createPublicFeedback,
   discordLoginUrl,
   fetchChangelog,
   fetchAdminFeedbacks,
+  fetchAdminProjects,
   fetchPublicBoard,
   fetchProjectSettings,
   fetchSession,
@@ -53,7 +55,7 @@ import { adminStatuses, categoryLabels, compactDate, roadmapStatuses, statusLabe
 
 const ENABLE_PAYMENTS = import.meta.env.VITE_ENABLE_PAYMENTS === "true";
 const DEFAULT_PROJECT_SLUG = import.meta.env.VITE_PROJECT_SLUG ?? "orbit-chat";
-type View = "landing" | "admin" | "portal" | "changelog" | "integrations" | "settings";
+type View = "landing" | "adminHome" | "admin" | "portal" | "changelog" | "integrations" | "settings";
 type RouteState = {
   view: View;
   projectSlug: string;
@@ -81,7 +83,7 @@ function parseRoute(): RouteState {
 
   if (parts[0] === "board") return { view: "portal", projectSlug: DEFAULT_PROJECT_SLUG };
   if (parts[0] === "changelog") return { view: "changelog", projectSlug: DEFAULT_PROJECT_SLUG };
-  if (parts[0] === "admin") return { view: "admin", projectSlug: DEFAULT_PROJECT_SLUG };
+  if (parts[0] === "admin") return { view: "adminHome", projectSlug: DEFAULT_PROJECT_SLUG };
 
   return { view: "landing", projectSlug: DEFAULT_PROJECT_SLUG };
 }
@@ -125,6 +127,7 @@ function App() {
   const setView = (nextView: View, nextProjectSlug = route.projectSlug) => {
     const paths: Record<View, string> = {
       landing: "/",
+      adminHome: "/admin",
       admin: `/admin/projects/${nextProjectSlug}/board`,
       portal: `/p/${nextProjectSlug}`,
       changelog: `/p/${nextProjectSlug}/changelog`,
@@ -142,6 +145,12 @@ function App() {
     try {
       if (route.view === "landing") {
         setFeedbacks([]);
+        return;
+      }
+
+      if (route.view === "adminHome") {
+        setFeedbacks([]);
+        setProject(null);
         return;
       }
 
@@ -260,9 +269,9 @@ function App() {
     }
   };
 
-  const projectName = project?.name ?? "Orbit Chat";
-  const isAdmin = session?.isAdmin || Boolean(adminKey);
-  const isAdminView = route.view === "admin" || route.view === "integrations" || route.view === "settings";
+  const projectName = project?.name ?? route.projectSlug;
+  const isAdmin = Boolean(session?.user) || Boolean(adminKey);
+  const isAdminView = route.view === "adminHome" || route.view === "admin" || route.view === "integrations" || route.view === "settings";
 
   if (route.view === "landing") {
     return (
@@ -320,6 +329,14 @@ function App() {
     );
   }
 
+  if (route.view === "adminHome") {
+    return (
+      <main className="adminHomeShell">
+        <AdminProjectsHome adminKey={adminKey || undefined} openProject={(slug) => setView("admin", slug)} />
+      </main>
+    );
+  }
+
   return (
     <main className="shell">
       <Sidebar
@@ -362,6 +379,84 @@ function App() {
   );
 }
 
+function AdminProjectsHome({
+  adminKey,
+  openProject
+}: {
+  adminKey?: string;
+  openProject: (slug: string) => void;
+}) {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [status, setStatus] = useState<string | null>(null);
+
+  const loadProjects = async () => {
+    try {
+      const data = await fetchAdminProjects(adminKey);
+      setProjects(data.projects);
+    } catch (caught) {
+      setStatus(caught instanceof Error ? caught.message : "Nie udało się pobrać projektów");
+    }
+  };
+
+  useEffect(() => {
+    void loadProjects();
+  }, [adminKey]);
+
+  const createProject = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setStatus("Tworzę projekt...");
+    try {
+      const result = await createAdminProject({ name, description: description || undefined }, adminKey);
+      setProjects((current) => [result.project, ...current]);
+      setName("");
+      setDescription("");
+      setStatus("Projekt utworzony");
+      openProject(result.project.slug);
+    } catch (caught) {
+      setStatus(caught instanceof Error ? caught.message : "Nie udało się utworzyć projektu");
+    }
+  };
+
+  return (
+    <section className="contentView">
+      <div className="viewHeader">
+        <div>
+          <h1>Moje projekty</h1>
+          <p>Każdy projekt ma własny publiczny link i osobny panel zarządzania.</p>
+        </div>
+      </div>
+      {status ? <p className={status.includes("Nie ") || status.includes("Unauthorized") ? "errorBanner" : "successBanner"}>{status}</p> : null}
+      <form className="settingsCard createProjectForm" onSubmit={(event) => void createProject(event)}>
+        <h2><Plus size={18} /> Stwórz nowy projekt</h2>
+        <label>
+          Nazwa
+          <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Pulse App" required minLength={2} />
+        </label>
+        <label>
+          Opis
+          <textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Krótki opis roadmapy dla społeczności" />
+        </label>
+        <button className="primaryButton"><Plus size={16} /> Utwórz projekt</button>
+      </form>
+      <div className="projectGrid">
+        {projects.map((item) => (
+          <article className="projectCard" key={item.id}>
+            <div>
+              <h2>{item.name}</h2>
+              <p>/p/{item.slug}</p>
+            </div>
+            <button className="secondaryButton" onClick={() => openProject(item.slug)}>
+              <KanbanSquare size={16} /> Otwórz panel
+            </button>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function PublicShell({
   projectName,
   view,
@@ -381,6 +476,24 @@ function PublicShell({
   onReportClick: () => void;
   children: React.ReactNode;
 }) {
+  const needsDiscordLogin = false;
+
+  if (needsDiscordLogin) {
+    return (
+      <section className="contentView">
+        <div className="viewHeader">
+          <div>
+            <h1>Prywatny changelog</h1>
+            <p>Zaloguj się Discordem, żeby sprawdzić aktualizacje tej społeczności.</p>
+          </div>
+          <a className="publicLoginButton" href={discordLoginUrl(window.location.pathname)}>
+            <LogIn size={16} /> Zaloguj z Discordem
+          </a>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <main className="publicShell">
       <header className="publicTopbar">
@@ -404,13 +517,13 @@ function PublicShell({
             <Plus size={16} /> Zgłoś
           </button>
           {session?.isAdmin ? (
-            <button className="publicAdminButton" onClick={() => setView("admin")}>
+            <button className="publicAdminButton" onClick={() => setView("adminHome")}>
               <KanbanSquare size={16} /> Panel admina
             </button>
           ) : session?.user ? (
             <span className="publicUser">{session.user.name ?? "Konto"}</span>
           ) : session?.discordOAuthConfigured ? (
-            <a className="publicLoginButton" href={discordLoginUrl()}>
+            <a className="publicLoginButton" href={discordLoginUrl("/admin")}>
               <LogIn size={16} /> Zaloguj
             </a>
           ) : null}
@@ -454,11 +567,11 @@ function LandingView({
         </nav>
         <div className="publicActions">
           {session?.isAdmin ? (
-            <button className="publicAdminButton" onClick={() => { window.location.href = `/admin/projects/${DEFAULT_PROJECT_SLUG}/board`; }}>
+            <button className="publicAdminButton" onClick={() => { window.location.href = "/admin"; }}>
               <KanbanSquare size={16} /> Panel admina
             </button>
           ) : session?.discordOAuthConfigured ? (
-            <a className="publicLoginButton" href={discordLoginUrl()}>
+            <a className="publicLoginButton" href={discordLoginUrl("/admin")}>
               <LogIn size={16} /> Zaloguj
             </a>
           ) : null}
@@ -819,6 +932,23 @@ function Portal({
 }) {
   const roadmap = feedbacks.filter((item) => roadmapStatuses.includes(item.status));
   const completed = feedbacks.filter((item) => item.status === "COMPLETED");
+  const needsDiscordLogin = error?.toLowerCase().includes("discord login");
+
+  if (needsDiscordLogin) {
+    return (
+      <section className="contentView">
+        <div className="viewHeader">
+          <div>
+            <h1>Prywatna roadmapa</h1>
+            <p>Ten projekt jest dostępny tylko po zalogowaniu Discordem i spełnieniu wymagań społeczności.</p>
+          </div>
+          <a className="publicLoginButton" href={discordLoginUrl(window.location.pathname)}>
+            <LogIn size={16} /> Zaloguj z Discordem
+          </a>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="portal">
@@ -900,6 +1030,24 @@ function ChangelogView({
   isLoading: boolean;
   error: string | null;
 }) {
+  const needsDiscordLogin = error?.toLowerCase().includes("discord login");
+
+  if (needsDiscordLogin) {
+    return (
+      <section className="contentView">
+        <div className="viewHeader">
+          <div>
+            <h1>Prywatny changelog</h1>
+            <p>Zaloguj się Discordem, żeby sprawdzić aktualizacje tej społeczności.</p>
+          </div>
+          <a className="publicLoginButton" href={discordLoginUrl(window.location.pathname)}>
+            <LogIn size={16} /> Zaloguj z Discordem
+          </a>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="contentView">
       <div className="viewHeader">
@@ -1093,6 +1241,9 @@ function SettingsView({
   const [moderatorDiscordIds, setModeratorDiscordIds] = useState((currentProject?.moderatorDiscordIds ?? []).join(", "));
   const [publicRoadmap, setPublicRoadmap] = useState(currentProject?.publicRoadmap ?? true);
   const [requireLoginToVote, setRequireLoginToVote] = useState(currentProject?.requireLoginToVote ?? false);
+  const [requireDiscordAuth, setRequireDiscordAuth] = useState(currentProject?.requireDiscordAuth ?? false);
+  const [discordGuildId, setDiscordGuildId] = useState(currentProject?.discordGuildId ?? "");
+  const [discordRoleId, setDiscordRoleId] = useState(currentProject?.discordRoleId ?? "");
   const [saveState, setSaveState] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1103,6 +1254,9 @@ function SettingsView({
     setModeratorDiscordIds((currentProject.moderatorDiscordIds ?? []).join(", "));
     setPublicRoadmap(currentProject.publicRoadmap ?? true);
     setRequireLoginToVote(currentProject.requireLoginToVote ?? false);
+    setRequireDiscordAuth(currentProject.requireDiscordAuth ?? false);
+    setDiscordGuildId(currentProject.discordGuildId ?? "");
+    setDiscordRoleId(currentProject.discordRoleId ?? "");
   }, [currentProject?.id, currentProject?.updatedAt]);
 
   const saveSettings = async () => {
@@ -1119,7 +1273,10 @@ function SettingsView({
             .map((id) => id.trim())
             .filter(Boolean),
           publicRoadmap,
-          requireLoginToVote
+          requireLoginToVote,
+          requireDiscordAuth,
+          discordGuildId,
+          discordRoleId
         },
         adminKey
       );
@@ -1171,6 +1328,7 @@ function SettingsView({
         </article>
         <article className="settingsCard">
           <h2>Prywatność</h2>
+          <p>`Roadmapa publiczna` steruje widocznością w katalogach. Dostęp do samego linku blokuje dopiero wymóg Discorda.</p>
           <label className="toggleRow">
             <input type="checkbox" checked={publicRoadmap} onChange={(event) => setPublicRoadmap(event.target.checked)} />
             Roadmapa publiczna
@@ -1178,6 +1336,18 @@ function SettingsView({
           <label className="toggleRow">
             <input type="checkbox" checked={requireLoginToVote} onChange={(event) => setRequireLoginToVote(event.target.checked)} />
             Wymagaj logowania do głosowania
+          </label>
+          <label className="toggleRow">
+            <input type="checkbox" checked={requireDiscordAuth} onChange={(event) => setRequireDiscordAuth(event.target.checked)} />
+            Wymagaj Discorda do oglądania roadmapy
+          </label>
+          <label>
+            Discord Guild ID
+            <input value={discordGuildId} onChange={(event) => setDiscordGuildId(event.target.value)} placeholder="ID serwera Discord" />
+          </label>
+          <label>
+            Discord Role ID
+            <input value={discordRoleId} onChange={(event) => setDiscordRoleId(event.target.value)} placeholder="Opcjonalnie ID roli Tester/Patron" />
           </label>
         </article>
         <article className="settingsCard dangerCard">

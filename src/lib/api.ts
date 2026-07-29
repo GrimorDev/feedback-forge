@@ -78,13 +78,25 @@ export async function fetchAdminFeedbacks(projectSlug: string, adminKey?: string
   return apiFetch<{ feedbacks: Feedback[] }>(`/api/v1/admin/feedbacks?${params.toString()}`, {}, { adminKey });
 }
 
+export async function fetchAdminProjects(adminKey?: string) {
+  return apiFetch<{ projects: Project[] }>("/api/v1/admin/projects", {}, { adminKey });
+}
+
+export async function createAdminProject(input: { name: string; description?: string }, adminKey?: string) {
+  return apiFetch<{ project: Project }>(
+    "/api/v1/admin/projects",
+    { method: "POST", body: JSON.stringify(input) },
+    { adminKey }
+  );
+}
+
 export async function fetchProjectSettings(projectSlug: string, adminKey?: string) {
   return apiFetch<ProjectSettingsResponse>(`/api/v1/admin/projects/${projectSlug}/settings`, {}, { adminKey });
 }
 
 export async function updateProjectSettings(
   projectSlug: string,
-  input: Partial<Pick<Project, "name" | "description" | "customDomain" | "publicRoadmap" | "requireLoginToVote" | "moderatorDiscordIds">>,
+  input: Partial<Pick<Project, "name" | "description" | "customDomain" | "publicRoadmap" | "requireLoginToVote" | "requireDiscordAuth" | "discordGuildId" | "discordRoleId" | "moderatorDiscordIds">>,
   adminKey?: string
 ) {
   return apiFetch<{ project: Project }>(
@@ -146,8 +158,9 @@ export async function voteFeedback(id: string) {
   });
 }
 
-export function discordLoginUrl() {
-  return `${API_BASE_URL}/api/v1/auth/discord/start`;
+export function discordLoginUrl(returnTo?: string) {
+  const params = returnTo ? `?${new URLSearchParams({ returnTo }).toString()}` : "";
+  return `${API_BASE_URL}/api/v1/auth/discord/start${params}`;
 }
 
 export async function logout() {

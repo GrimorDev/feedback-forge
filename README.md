@@ -32,6 +32,7 @@ The app is exposed on `API_PORT` (`3010` by default in Docker) and serves both:
 
 - API: `/api/v1/...`
 - frontend build: `/`
+- admin project dashboard: `/admin`
 - public project roadmap: `/p/:projectSlug`
 - public project changelog: `/p/:projectSlug/changelog`
 - private project admin panel: `/admin/projects/:projectSlug/board`
@@ -82,11 +83,13 @@ Then set:
 PUBLIC_BASE_URL=https://your-domain.example
 DISCORD_CLIENT_ID=...
 DISCORD_CLIENT_SECRET=...
+DISCORD_BOT_TOKEN=...
 DISCORD_REDIRECT_URI=https://your-domain.example/api/v1/auth/discord/callback
 ADMIN_DISCORD_IDS=your_discord_user_id
 ```
 
 For temporary plain HTTP testing, set `COOKIE_SECURE=false`. For a real HTTPS domain, keep `COOKIE_SECURE=true`.
+`DISCORD_BOT_TOKEN` is required only when a project restricts roadmap access by Discord server or role.
 
 `ADMIN_API_KEY` remains available as an emergency/admin bootstrap path.
 

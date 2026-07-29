@@ -137,6 +137,11 @@ textarea:focus-visible {
   min-height: 100vh;
 }
 
+.adminHomeShell {
+  min-height: 100vh;
+  padding: clamp(22px, 4vw, 46px);
+}
+
 .landingHero {
   align-items: center;
   display: grid;
@@ -1226,6 +1231,38 @@ textarea:focus-visible {
   display: grid;
   gap: 14px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.projectGrid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.projectCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  padding: 16px;
+}
+
+.projectCard h2 {
+  color: var(--text);
+  font-size: 18px;
+  margin: 0 0 6px;
+}
+
+.projectCard p {
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.createProjectForm {
+  max-width: 680px;
 }
 
 .settingsCard {

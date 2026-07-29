@@ -1,10 +1,40 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
+import type { Project } from "@prisma/client";
 import { getSessionUser } from "../auth.js";
+import { config } from "../config.js";
 import { ApiError } from "../errors.js";
 import { createFeedbackSchema, projectDiscordFeedbackSchema, voteSchema } from "../schemas.js";
 import { rateLimit } from "../rate-limit.js";
 import { ensureProject, getOrCreateMember, publicFeedbackInclude } from "../services.js";
 import { prisma } from "../prisma.js";
+
+type DiscordGuildMember = {
+  roles?: string[];
+};
+
+async function ensurePublicProjectAccess(request: FastifyRequest, project: Project) {
+  if (!project.requireDiscordAuth) return;
+
+  const user = await getSessionUser(request);
+  if (!user?.discordId) throw new ApiError(401, "Discord login is required to access this roadmap");
+  if (!project.discordGuildId) return;
+  if (!config.discordBotToken) throw new ApiError(503, "Discord guild verification is not configured");
+
+  const memberResponse = await fetch(`https://discord.com/api/v10/guilds/${project.discordGuildId}/members/${user.discordId}`, {
+    headers: { authorization: `Bot ${config.discordBotToken}` }
+  });
+
+  if (!memberResponse.ok) {
+    throw new ApiError(403, "Access is limited to the configured Discord community");
+  }
+
+  if (project.discordRoleId) {
+    const member = (await memberResponse.json()) as DiscordGuildMember;
+    if (!member.roles?.includes(project.discordRoleId)) {
+      throw new ApiError(403, "Access is limited to members with the configured Discord role");
+    }
+  }
+}
 
 export async function registerPublicRoutes(app: FastifyInstance) {
   app.get("/widget.js", async (_request, reply) => {
@@ -65,7 +95,7 @@ export async function registerPublicRoutes(app: FastifyInstance) {
   app.get("/api/v1/projects/:slug/board", async (request) => {
     const params = request.params as { slug: string };
     const project = await ensureProject(params.slug);
-    if (!project.publicRoadmap) throw new ApiError(403, "This roadmap is private");
+    await ensurePublicProjectAccess(request, project);
 
     const feedbacks = await prisma.feedback.findMany({
       where: {
@@ -85,7 +115,7 @@ export async function registerPublicRoutes(app: FastifyInstance) {
     const params = request.params as { slug: string };
     const body = createFeedbackSchema.parse(request.body);
     const project = await ensureProject(params.slug);
-    if (!project.publicRoadmap) throw new ApiError(403, "This roadmap is private");
+    await ensurePublicProjectAccess(request, project);
     const author = await getOrCreateMember(body);
 
     const feedback = await prisma.feedback.create({
@@ -148,6 +178,7 @@ export async function registerPublicRoutes(app: FastifyInstance) {
       include: { project: true }
     });
     if (!existingFeedback || existingFeedback.mergedIntoId) throw new ApiError(404, "Feedback not found");
+    await ensurePublicProjectAccess(request, existingFeedback.project);
     if (existingFeedback.project.requireLoginToVote && !(await getSessionUser(request))) {
       throw new ApiError(401, "Login is required to vote on this project");
     }
@@ -195,7 +226,7 @@ export async function registerPublicRoutes(app: FastifyInstance) {
   app.get("/api/v1/projects/:slug/changelog", async (request) => {
     const params = request.params as { slug: string };
     const project = await ensureProject(params.slug);
-    if (!project.publicRoadmap) throw new ApiError(403, "This roadmap is private");
+    await ensurePublicProjectAccess(request, project);
 
     const feedbacks = await prisma.feedback.findMany({
       where: {

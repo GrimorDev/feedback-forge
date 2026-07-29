@@ -65,7 +65,15 @@ export const updateProjectSettingsSchema = z.object({
   customDomain: z.string().max(255).nullable().optional(),
   publicRoadmap: z.boolean().optional(),
   requireLoginToVote: z.boolean().optional(),
+  requireDiscordAuth: z.boolean().optional(),
+  discordGuildId: z.string().max(120).nullable().optional(),
+  discordRoleId: z.string().max(120).nullable().optional(),
   moderatorDiscordIds: z.array(z.string().min(1).max(120)).max(25).optional()
+});
+
+export const createProjectSchema = z.object({
+  name: z.string().min(2).max(120),
+  description: z.string().max(1000).optional()
 });
 
 export const updateIntegrationSchema = z.object({

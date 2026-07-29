@@ -74,6 +74,9 @@ model Project {
   customDomain        String?  @unique
   publicRoadmap       Boolean  @default(true)
   requireLoginToVote  Boolean  @default(false)
+  requireDiscordAuth  Boolean  @default(false)
+  discordGuildId      String?
+  discordRoleId       String?
   moderatorDiscordIds String[] @default([])
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
