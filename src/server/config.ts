@@ -10,6 +10,12 @@ export const config = {
   adminApiKey: process.env.ADMIN_API_KEY,
   publicBaseUrl: process.env.PUBLIC_BASE_URL ?? `http://localhost:${process.env.PORT ?? 3000}`,
   sessionCookieName: process.env.SESSION_COOKIE_NAME ?? "ff_session",
+  cookieSecure:
+    process.env.COOKIE_SECURE === "false"
+      ? false
+      : process.env.COOKIE_SECURE === "true"
+        ? true
+        : (process.env.PUBLIC_BASE_URL ?? "").startsWith("https://") || process.env.NODE_ENV === "production",
   discordClientId: process.env.DISCORD_CLIENT_ID,
   discordClientSecret: process.env.DISCORD_CLIENT_SECRET,
   discordRedirectUri: process.env.DISCORD_REDIRECT_URI,

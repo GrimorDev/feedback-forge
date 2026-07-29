@@ -33,6 +33,7 @@ services:
       ADMIN_API_KEY: ${ADMIN_API_KEY:-change-me-before-production}
       ENABLE_PAYMENTS: ${ENABLE_PAYMENTS:-false}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3010}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
       DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
       DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
       DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI:-http://localhost:3010/api/v1/auth/discord/callback}

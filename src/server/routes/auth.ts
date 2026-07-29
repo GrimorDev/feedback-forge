@@ -58,7 +58,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     reply.setCookie("ff_oauth_state", state, {
       httpOnly: true,
       sameSite: "lax",
-      secure: config.nodeEnv === "production",
+      secure: config.cookieSecure,
       path: "/api/v1/auth/discord",
       maxAge: 10 * 60
     });

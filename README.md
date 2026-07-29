@@ -62,6 +62,12 @@ Create a Discord application and add this redirect URL:
 https://your-domain.example/api/v1/auth/discord/callback
 ```
 
+When testing directly on a VPS IP without a reverse proxy, include the published Docker port:
+
+```text
+http://57.128.252.145:3010/api/v1/auth/discord/callback
+```
+
 Then set:
 
 ```bash
@@ -71,6 +77,8 @@ DISCORD_CLIENT_SECRET=...
 DISCORD_REDIRECT_URI=https://your-domain.example/api/v1/auth/discord/callback
 ADMIN_DISCORD_IDS=your_discord_user_id
 ```
+
+For temporary plain HTTP testing, set `COOKIE_SECURE=false`. For a real HTTPS domain, keep `COOKIE_SECURE=true`.
 
 `ADMIN_API_KEY` remains available as an emergency/admin bootstrap path.
 
