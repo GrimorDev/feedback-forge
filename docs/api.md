@@ -5,13 +5,14 @@
 ## Tenant URL model
 
 Each project is addressed by its `Project.slug`.
+Feedback rows and vote rows both carry `projectId`; tags are stored on feedback rows, so they inherit the same project scope.
 
 | Surface | URL |
 | --- | --- |
 | Public roadmap | `/p/:projectSlug` |
 | Public changelog | `/p/:projectSlug/changelog` |
-| Admin board | `/admin/projects/:projectSlug` |
-| Admin integrations | `/admin/projects/:projectSlug/integrations` |
+| Admin board | `/admin/projects/:projectSlug/board` |
+| Admin integrations | `/admin/projects/:projectSlug/wloty` |
 | Admin settings | `/admin/projects/:projectSlug/settings` |
 
 Admin endpoints are protected when `ADMIN_API_KEY` is set. Send either:
@@ -25,6 +26,7 @@ Admin endpoints are protected when `ADMIN_API_KEY` is set. Send either:
 | --- | --- | --- |
 | `GET` | `/api/v1/projects/:slug/board` | Public roadmap: `PLANNED`, `IN_PROGRESS`, `COMPLETED`. |
 | `POST` | `/api/v1/projects/:slug/feedback` | Create feedback from widget, Discord, GitHub, or API. |
+| `POST` | `/api/v1/projects/:slug/feedbacks/discord` | Create feedback from the Discord `/suggest` bot. |
 | `POST` | `/api/v1/feedback/:id/vote` | Toggle a vote in a transaction and update `upvotesCount`. |
 | `GET` | `/api/v1/projects/:slug/changelog` | Completed feedback sorted by `updatedAt DESC`. |
 
@@ -39,6 +41,25 @@ Public create/vote payloads can include lightweight identity fields:
 ```
 
 Creating feedback additionally accepts `title`, `description`, `category`, `source`, `tags`, and `externalUrl`.
+
+Discord bot payload:
+
+```json
+{
+  "title": "Patron-only channels",
+  "description": "Grant role after payment",
+  "discord_user_id": "71820491",
+  "discord_username": "Grimor",
+  "channel_id": "123456789012345678"
+}
+```
+
+Public protection:
+
+- `publicRoadmap=false` returns `403` for public board/changelog/submission.
+- `requireLoginToVote=true` requires an active session for `POST /api/v1/feedback/:id/vote`.
+- Public feedback creation is rate-limited to 3/hour per IP.
+- Voting is rate-limited to 10/minute per IP.
 
 ## Admin
 
@@ -58,6 +79,7 @@ The settings response also returns generated setup values:
 {
   "instructions": {
     "apiBaseUrl": "https://feedback.example.com",
+    "discordProjectEndpoint": "https://feedback.example.com/api/v1/projects/orbit-chat/feedbacks/discord",
     "discordWebhookUrl": "https://feedback.example.com/api/v1/webhooks/discord/suggest",
     "githubWebhookUrl": "https://feedback.example.com/api/v1/webhooks/github/issues",
     "widgetSnippet": "<script async src=\"https://feedback.example.com/widget.js\" data-project=\"orbit-chat\"></script>"

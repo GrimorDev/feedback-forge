@@ -9,12 +9,20 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
+  const primaryAdminDiscordId = (process.env.ADMIN_DISCORD_IDS ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean)[0];
+
   const owner = await prisma.user.upsert({
     where: { email: "founder@orbit.chat" },
-    update: {},
+    update: {
+      discordId: primaryAdminDiscordId
+    },
     create: {
       email: "founder@orbit.chat",
       name: "Klaudia",
+      discordId: primaryAdminDiscordId,
       role: "ADMIN",
       plan: "EARLY_ADOPTER",
       lifetimeFree: true,
@@ -71,6 +79,7 @@ async function main() {
     },
     update: {},
     create: {
+      projectId: project.id,
       userId: member.id,
       feedbackId: feedback.id
     }
@@ -88,4 +97,3 @@ main()
     await prisma.$disconnect();
     process.exit(1);
   });
-

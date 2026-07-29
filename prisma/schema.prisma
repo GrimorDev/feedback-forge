@@ -84,6 +84,7 @@ model Project {
   feedbacks    Feedback[]
   integrations Integration[]
   webhooks     OutboundWebhook[]
+  votes        Vote[]
 }
 
 model Feedback {
@@ -126,9 +127,13 @@ model Vote {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
   feedbackId String
   feedback   Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
 
+  @@index([projectId, createdAt])
   @@unique([userId, feedbackId])
 }
 

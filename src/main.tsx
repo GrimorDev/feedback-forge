@@ -70,7 +70,12 @@ function parseRoute(): RouteState {
   }
 
   if (parts[0] === "admin" && parts[1] === "projects" && parts[2]) {
-    const view = parts[3] === "integrations" ? "integrations" : parts[3] === "settings" ? "settings" : "admin";
+    const view =
+      parts[3] === "integrations" || parts[3] === "wloty"
+        ? "integrations"
+        : parts[3] === "settings"
+          ? "settings"
+          : "admin";
     return { view, projectSlug: decodeURIComponent(parts[2]) };
   }
 
@@ -120,10 +125,10 @@ function App() {
   const setView = (nextView: View, nextProjectSlug = route.projectSlug) => {
     const paths: Record<View, string> = {
       landing: "/",
-      admin: `/admin/projects/${nextProjectSlug}`,
+      admin: `/admin/projects/${nextProjectSlug}/board`,
       portal: `/p/${nextProjectSlug}`,
       changelog: `/p/${nextProjectSlug}/changelog`,
-      integrations: `/admin/projects/${nextProjectSlug}/integrations`,
+      integrations: `/admin/projects/${nextProjectSlug}/wloty`,
       settings: `/admin/projects/${nextProjectSlug}/settings`
     };
     const path = paths[nextView];
@@ -449,7 +454,7 @@ function LandingView({
         </nav>
         <div className="publicActions">
           {session?.isAdmin ? (
-            <button className="publicAdminButton" onClick={() => { window.location.href = `/admin/projects/${DEFAULT_PROJECT_SLUG}`; }}>
+            <button className="publicAdminButton" onClick={() => { window.location.href = `/admin/projects/${DEFAULT_PROJECT_SLUG}/board`; }}>
               <KanbanSquare size={16} /> Panel admina
             </button>
           ) : session?.discordOAuthConfigured ? (
@@ -958,6 +963,7 @@ function IntegrationsView({ projectSlug, adminKey }: { projectSlug: string; admi
     settings?.instructions.widgetSnippet ??
     `<script async src="${window.location.origin}/widget.js" data-project="${projectSlug}"></script>`;
   const apiBaseUrl = settings?.instructions.apiBaseUrl ?? window.location.origin;
+  const discordProjectEndpoint = settings?.instructions.discordProjectEndpoint ?? `${window.location.origin}/api/v1/projects/${projectSlug}/feedbacks/discord`;
   const discordWebhookUrl = settings?.instructions.discordWebhookUrl ?? `${window.location.origin}/api/v1/webhooks/discord/suggest`;
   const githubWebhookUrl = settings?.instructions.githubWebhookUrl ?? `${window.location.origin}/api/v1/webhooks/github/issues`;
   const [discordChannelId, setDiscordChannelId] = useState("");
@@ -1039,6 +1045,7 @@ function IntegrationsView({ projectSlug, adminKey }: { projectSlug: string; admi
           <code>DISCORD_BOT_TOKEN=wklej_token_bota</code>
           <code>DISCORD_CLIENT_ID=wklej_client_id_aplikacji</code>
           <code>DISCORD_GUILD_ID=opcjonalnie_id_serwera</code>
+          <code>{discordProjectEndpoint}</code>
           <p>Webhook techniczny, jeśli kiedyś użyjesz własnej integracji zamiast bota: {discordWebhookUrl}</p>
           <button className="secondaryButton" onClick={() => void saveDiscord()}><Check size={16} /> Zapisz Discord</button>
           <button className="secondaryButton" onClick={() => void copyText(`API_BASE_URL=${apiBaseUrl}\nPROJECT_SLUG=${projectSlug}\nDISCORD_BOT_TOKEN=\nDISCORD_CLIENT_ID=\nDISCORD_GUILD_ID=`, "Skopiowano zmienne bota Discord")}><Copy size={16} /> Kopiuj zmienne bota</button>

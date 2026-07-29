@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { Prisma } from "@prisma/client";
-import { getSessionUser, isAdminUser } from "../auth.js";
+import { Prisma, type Project, type User } from "@prisma/client";
+import { getSessionUser } from "../auth.js";
 import { ApiError } from "../errors.js";
 import {
   adminFeedbackQuerySchema,
@@ -15,19 +15,56 @@ import { config } from "../config.js";
 import { createCompletedNotification, getOrCreateMember } from "../services.js";
 import { prisma } from "../prisma.js";
 
-async function requireAdmin(request: FastifyRequest, _reply: FastifyReply) {
+type AdminContext =
+  | { bypass: true; user: null }
+  | { bypass: false; user: User };
+
+async function getAdminContext(request: FastifyRequest): Promise<AdminContext> {
   const auth = request.headers.authorization;
   const headerKey = request.headers["x-admin-api-key"];
   const bearer = auth?.startsWith("Bearer ") ? auth.slice("Bearer ".length) : undefined;
 
   if (config.adminApiKey && (bearer === config.adminApiKey || headerKey === config.adminApiKey)) {
-    return;
+    return { bypass: true, user: null };
   }
 
   const user = await getSessionUser(request);
-  if (isAdminUser(user)) return;
+  if (user?.role === "ADMIN") return { bypass: false, user };
 
   throw new ApiError(401, "Unauthorized");
+}
+
+async function requireAdmin(request: FastifyRequest, _reply: FastifyReply) {
+  await getAdminContext(request);
+}
+
+function canAccessProject(context: AdminContext, project: Project) {
+  if (context.bypass) return true;
+  if (context.user.discordId && config.adminDiscordIds.includes(context.user.discordId)) return true;
+  return project.ownerId === context.user.id || Boolean(context.user.discordId && project.moderatorDiscordIds.includes(context.user.discordId));
+}
+
+async function requireProjectAccess(request: FastifyRequest, slug: string) {
+  const context = await getAdminContext(request);
+  const project = await prisma.project.findUnique({ where: { slug } });
+
+  if (!project) throw new ApiError(404, "Project not found");
+  if (!canAccessProject(context, project)) throw new ApiError(403, "No access to this project");
+
+  return project;
+}
+
+async function requireFeedbackAccess(request: FastifyRequest, feedbackId: string) {
+  const context = await getAdminContext(request);
+  const feedback = await prisma.feedback.findUnique({
+    where: { id: feedbackId },
+    include: { project: true }
+  });
+
+  if (!feedback) throw new ApiError(404, "Feedback not found");
+  if (!canAccessProject(context, feedback.project)) throw new ApiError(403, "No access to this project");
+
+  return feedback;
 }
 
 export async function registerAdminRoutes(app: FastifyInstance) {
@@ -35,6 +72,7 @@ export async function registerAdminRoutes(app: FastifyInstance) {
 
   app.get("/api/v1/admin/projects/:slug/settings", async (request) => {
     const params = request.params as { slug: string };
+    await requireProjectAccess(request, params.slug);
     const project = await prisma.project.findUnique({
       where: { slug: params.slug },
       include: {
@@ -51,6 +89,7 @@ export async function registerAdminRoutes(app: FastifyInstance) {
       integrations: project.integrations,
       instructions: {
         apiBaseUrl: config.publicBaseUrl,
+        discordProjectEndpoint: `${config.publicBaseUrl}/api/v1/projects/${project.slug}/feedbacks/discord`,
         discordWebhookUrl: `${config.publicBaseUrl}/api/v1/webhooks/discord/suggest`,
         githubWebhookUrl: `${config.publicBaseUrl}/api/v1/webhooks/github/issues`,
         widgetSnippet: `<script async src="${config.publicBaseUrl}/widget.js" data-project="${project.slug}"></script>`
@@ -60,6 +99,7 @@ export async function registerAdminRoutes(app: FastifyInstance) {
 
   app.patch("/api/v1/admin/projects/:slug/settings", async (request) => {
     const params = request.params as { slug: string };
+    await requireProjectAccess(request, params.slug);
     const body = updateProjectSettingsSchema.parse(request.body);
     const customDomain = body.customDomain === undefined ? undefined : body.customDomain?.trim() || null;
 
@@ -80,9 +120,8 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     const params = request.params as { slug: string; provider: string };
     const provider = sourceSchema.parse(params.provider);
     const body = updateIntegrationSchema.parse(request.body);
-    const project = await prisma.project.findUnique({ where: { slug: params.slug } });
+    const project = await requireProjectAccess(request, params.slug);
 
-    if (!project) throw new ApiError(404, "Project not found");
     const integrationConfig = body.config as Prisma.InputJsonValue;
 
     const integration = await prisma.integration.upsert({
@@ -109,11 +148,13 @@ export async function registerAdminRoutes(app: FastifyInstance) {
 
   app.get("/api/v1/admin/feedbacks", async (request) => {
     const query = adminFeedbackQuerySchema.parse(request.query);
+    if (!query.projectSlug) throw new ApiError(400, "projectSlug is required");
+    const project = await requireProjectAccess(request, query.projectSlug);
 
     const feedbacks = await prisma.feedback.findMany({
       where: {
         mergedIntoId: null,
-        project: query.projectSlug ? { slug: query.projectSlug } : undefined,
+        projectId: project.id,
         status: query.status,
         category: query.category,
         source: query.source,
@@ -157,8 +198,7 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     const params = request.params as { id: string };
     const body = updateFeedbackSchema.parse(request.body);
 
-    const before = await prisma.feedback.findUnique({ where: { id: params.id } });
-    if (!before) throw new ApiError(404, "Feedback not found");
+    const before = await requireFeedbackAccess(request, params.id);
 
     const feedback = await prisma.feedback.update({
       where: { id: params.id },
@@ -176,6 +216,8 @@ export async function registerAdminRoutes(app: FastifyInstance) {
   app.post("/api/v1/admin/feedbacks/:id/merge", async (request) => {
     const params = request.params as { id: string };
     const body = mergeFeedbackSchema.parse(request.body);
+    await requireFeedbackAccess(request, params.id);
+    await requireFeedbackAccess(request, body.duplicateId);
 
     if (params.id === body.duplicateId) {
       throw new ApiError(400, "Cannot merge feedback into itself");
@@ -193,6 +235,7 @@ export async function registerAdminRoutes(app: FastifyInstance) {
       const duplicateVotes = await tx.vote.findMany({ where: { feedbackId: duplicate.id } });
       await tx.vote.createMany({
         data: duplicateVotes.map((vote) => ({
+          projectId: target.projectId,
           userId: vote.userId,
           feedbackId: target.id
         })),
@@ -223,6 +266,7 @@ export async function registerAdminRoutes(app: FastifyInstance) {
 
   app.post("/api/v1/admin/feedbacks/:id/comments", async (request, reply) => {
     const params = request.params as { id: string };
+    await requireFeedbackAccess(request, params.id);
     const body = createCommentSchema.parse(request.body);
     const author = await getOrCreateMember({
       email: body.authorEmail ?? "admin@feedback.local",

@@ -82,6 +82,14 @@ export const discordSuggestSchema = z.object({
   channelId: z.string().min(1).max(120).optional()
 });
 
+export const projectDiscordFeedbackSchema = z.object({
+  title: z.string().min(5).max(180),
+  description: z.string().min(10).max(5000),
+  discord_user_id: z.string().min(1).max(120),
+  discord_username: z.string().min(1).max(120).optional(),
+  channel_id: z.string().min(1).max(120).optional()
+});
+
 export const githubIssueSchema = z.object({
   projectSlug: z.string().min(1),
   title: z.string().min(5).max(180),

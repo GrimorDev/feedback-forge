@@ -49,17 +49,15 @@ client.on("interactionCreate", async (interaction) => {
   const title = interaction.options.getString("tytul", true);
   const description = interaction.options.getString("opis", true);
 
-  const response = await fetch(`${apiBaseUrl}/api/v1/projects/${projectSlug}/feedback`, {
+  const response = await fetch(`${apiBaseUrl}/api/v1/projects/${projectSlug}/feedbacks/discord`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       title,
       description,
-      category: "FEATURE",
-      source: "DISCORD",
-      tags: ["discord"],
-      discordId: interaction.user.id,
-      name: interaction.user.globalName ?? interaction.user.username
+      discord_user_id: interaction.user.id,
+      discord_username: interaction.user.globalName ?? interaction.user.username,
+      channel_id: interaction.channelId
     })
   });
 
