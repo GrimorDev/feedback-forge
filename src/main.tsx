@@ -1292,6 +1292,10 @@ function IntegrationsView({ projectSlug, adminKey }: { projectSlug: string; admi
           ) : (
             <p className="hintBox">Centralny bot nie ma ustawionego DISCORD_CLIENT_ID na serwerze SaaS.</p>
           )}
+          <div className="discordFixBox">
+            <strong>Widzisz w Discordzie „Integration requires code grant”?</strong>
+            <span>W Developer Portal otwórz aplikację bota, przejdź do Bot i wyłącz Requires OAuth2 Code Grant. Zapisz zmiany i kliknij ponownie przycisk dodania bota.</span>
+          </div>
           <label>
             ID serwera Discord
             <input value={discordGuildId} onChange={(event) => setDiscordGuildId(event.target.value)} placeholder="np. 987654321098765432" />

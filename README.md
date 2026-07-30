@@ -97,6 +97,8 @@ For temporary plain HTTP testing, set `COOKIE_SECURE=false`. For a real HTTPS do
 
 Feedback Forge runs one central Discord bot for all customer projects. Customers click "Add bot to Discord" in the admin panel, choose their server in Discord, then save the server ID and feedback channel ID in Integrations. The bot sends `guildId` to the API, and the API maps that Discord server to the correct project.
 
+In Discord Developer Portal, open the bot application and make sure `Bot -> Requires OAuth2 Code Grant` is disabled. If it is enabled, Discord shows `Integration requires code grant` and blocks the one-click bot install link.
+
 ```bash
 DISCORD_BOT_TOKEN=...
 DISCORD_CLIENT_ID=...

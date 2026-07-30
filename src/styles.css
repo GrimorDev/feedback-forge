@@ -1423,6 +1423,27 @@ textarea:focus-visible {
   line-height: 1.45;
 }
 
+.discordFixBox {
+  background: color-mix(in srgb, #ef4444 9%, var(--surface-muted));
+  border: 1px solid color-mix(in srgb, #ef4444 32%, var(--border));
+  border-radius: var(--radius);
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+}
+
+.discordFixBox strong {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.discordFixBox span {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .settingsCard p {
   color: var(--text-muted);
   font-size: 13px;

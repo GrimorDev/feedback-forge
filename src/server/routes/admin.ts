@@ -20,6 +20,16 @@ type AdminContext =
   | { bypass: true; user: null }
   | { bypass: false; user: User };
 
+function discordBotInviteUrl(clientId: string) {
+  const url = new URL("https://discord.com/oauth2/authorize");
+  url.searchParams.set("client_id", clientId);
+  url.searchParams.set("permissions", "2147485696");
+  url.searchParams.set("scope", "bot applications.commands");
+  url.searchParams.set("integration_type", "0");
+  url.searchParams.set("prompt", "consent");
+  return url.toString();
+}
+
 async function getAdminContext(request: FastifyRequest): Promise<AdminContext> {
   const auth = request.headers.authorization;
   const headerKey = request.headers["x-admin-api-key"];
@@ -152,9 +162,7 @@ export async function registerAdminRoutes(app: FastifyInstance) {
         apiBaseUrl: config.publicBaseUrl,
         discordBotClientId: config.discordClientId,
         discordBotConfigured: Boolean(config.discordClientId && config.discordBotToken),
-        discordBotInviteUrl: config.discordClientId
-          ? `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(config.discordClientId)}&permissions=2147485696&scope=bot%20applications.commands`
-          : null,
+        discordBotInviteUrl: config.discordClientId ? discordBotInviteUrl(config.discordClientId) : null,
         discordProjectEndpoint: `${config.publicBaseUrl}/api/v1/projects/${project.slug}/feedbacks/discord`,
         discordWebhookUrl: `${config.publicBaseUrl}/api/v1/webhooks/discord/suggest`,
         githubWebhookUrl: `${config.publicBaseUrl}/api/v1/webhooks/github/issues`,
