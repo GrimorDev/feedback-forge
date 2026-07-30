@@ -125,6 +125,14 @@ export async function fetchDiscordChannels(projectSlug: string, guildId: string,
   );
 }
 
+export async function fetchDiscordBotStatus(adminKey?: string) {
+  return apiFetch<{ configured: boolean; reachable: boolean; clientId: string | null; botName: string | null }>(
+    "/api/v1/admin/discord/bot/status",
+    {},
+    { adminKey }
+  );
+}
+
 export async function updateAdminFeedback(id: string, patch: Partial<Pick<Feedback, "status" | "priority" | "category" | "tags">>, adminKey?: string) {
   return apiFetch<{ feedback: Feedback }>(
     `/api/v1/admin/feedbacks/${id}`,

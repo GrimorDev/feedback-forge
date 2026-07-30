@@ -217,6 +217,40 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     };
   });
 
+  app.get("/api/v1/admin/discord/bot/status", async (request, reply) => {
+    await getAdminContext(request);
+
+    if (!config.discordClientId || !config.discordBotToken) {
+      return {
+        configured: false,
+        reachable: false,
+        clientId: config.discordClientId ?? null,
+        botName: null
+      };
+    }
+
+    const response = await fetch("https://discord.com/api/v10/users/@me", {
+      headers: { authorization: `Bot ${config.discordBotToken}` }
+    });
+
+    if (!response.ok) {
+      return reply.status(200).send({
+        configured: true,
+        reachable: false,
+        clientId: config.discordClientId,
+        botName: null
+      });
+    }
+
+    const bot = (await response.json()) as { username?: string; discriminator?: string };
+    return {
+      configured: true,
+      reachable: true,
+      clientId: config.discordClientId,
+      botName: bot.username ?? null
+    };
+  });
+
   app.put("/api/v1/admin/projects/:slug/integrations/:provider", async (request) => {
     const params = request.params as { slug: string; provider: string };
     const provider = sourceSchema.parse(params.provider);

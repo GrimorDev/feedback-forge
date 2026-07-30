@@ -39,6 +39,7 @@ import {
   fetchChangelog,
   fetchAdminFeedbacks,
   fetchAdminProjects,
+  fetchDiscordBotStatus,
   fetchDiscordChannels,
   fetchPublicBoard,
   fetchProjectSettings,
@@ -1172,6 +1173,12 @@ function IntegrationsView({ projectSlug, adminKey }: { projectSlug: string; admi
   const [discordGuildId, setDiscordGuildId] = useState("");
   const [discordChannels, setDiscordChannels] = useState<Array<{ id: string; name: string }>>([]);
   const [discordChannelsState, setDiscordChannelsState] = useState<string | null>(null);
+  const [discordBotStatus, setDiscordBotStatus] = useState<{
+    configured: boolean;
+    reachable: boolean;
+    clientId: string | null;
+    botName: string | null;
+  } | null>(null);
   const [githubRepository, setGithubRepository] = useState("");
   const [saveState, setSaveState] = useState<string | null>(null);
   const inviteUrl = settings?.instructions.discordBotInviteUrl ?? "";
@@ -1182,6 +1189,21 @@ function IntegrationsView({ projectSlug, adminKey }: { projectSlug: string; admi
     setDiscordGuildId(String(discordConfig.guildId ?? ""));
     setGithubRepository(String(githubConfig.repository ?? ""));
   }, [discordConfig.channelId, discordConfig.guildId, githubConfig.repository]);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchDiscordBotStatus(adminKey)
+      .then((status) => {
+        if (isMounted) setDiscordBotStatus(status);
+      })
+      .catch(() => {
+        if (isMounted) setDiscordBotStatus({ configured: false, reachable: false, clientId: null, botName: null });
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [adminKey]);
 
   useEffect(() => {
     const trimmedGuildId = discordGuildId.trim();
@@ -1281,9 +1303,19 @@ function IntegrationsView({ projectSlug, adminKey }: { projectSlug: string; admi
             <li><strong>3. Wybierz kanał</strong><span>Wklej ID kanału, na którym ma działać komenda /suggest.</span></li>
           </ol>
           <p>To jest centralny bot Feedback Forge. Klient nie tworzy aplikacji Discord, nie kopiuje tokenów i nie uruchamia kontenera.</p>
+          <div className={discordBotStatus?.reachable ? "connectionState connected" : "connectionState"}>
+            <strong>{discordBotStatus?.reachable ? `Bot działa: ${discordBotStatus.botName ?? "FeedForge"}` : "Centralny bot nie odpowiada"}</strong>
+            <span>
+              {discordBotStatus?.reachable
+                ? "Token bota jest poprawny. Jeśli bot jest offline na Discordzie, zrób redeploy stacka i sprawdź kontener discord-bot."
+                : discordBotStatus?.configured
+                  ? "DISCORD_BOT_TOKEN albo DISCORD_CLIENT_ID są ustawione, ale Discord odrzuca token."
+                  : "Ustaw DISCORD_BOT_TOKEN i DISCORD_CLIENT_ID w Portainerze, a potem redeploy stacka."}
+            </span>
+          </div>
           <div className={isDiscordConnected ? "connectionState connected" : "connectionState"}>
-            <strong>{isDiscordConnected ? "Discord połączony" : "Discord niepołączony"}</strong>
-            <span>{isDiscordConnected ? "Ten serwer jest przypisany do tego projektu." : "Dodaj naszego bota i zapisz serwer oraz kanał zgłoszeń."}</span>
+            <strong>{isDiscordConnected ? "Projekt połączony z Discordem" : "Projekt nie jest jeszcze połączony"}</strong>
+            <span>{isDiscordConnected ? "Ten serwer jest przypisany do tego projektu." : "Samo dodanie bota na Discordzie nie zapisuje mapowania. Wpisz ID serwera, wybierz kanał i kliknij Zapisz połączenie Discord."}</span>
           </div>
           {inviteUrl ? (
             <a className="primaryButton" href={inviteUrl} target="_blank" rel="noreferrer">

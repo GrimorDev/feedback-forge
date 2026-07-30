@@ -20,24 +20,43 @@ const command = new SlashCommandBuilder()
     option.setName("opis").setDescription("Opis problemu lub pomysłu").setMinLength(10).setMaxLength(5000).setRequired(true)
   );
 
+const commandBody = [command.toJSON()];
+
+async function registerGuildCommands(rest, targetGuildId) {
+  await rest.put(Routes.applicationGuildCommands(clientId, targetGuildId), { body: commandBody });
+  console.log(`Registered /suggest for guild ${targetGuildId}`);
+}
+
 async function registerCommands() {
   const rest = new REST({ version: "10" }).setToken(token);
-  const body = [command.toJSON()];
 
   if (guildId) {
-    await rest.put(Routes.applicationGuildCommands(clientId, guildId), { body });
-    console.log(`Registered /suggest for guild ${guildId}`);
+    await registerGuildCommands(rest, guildId);
     return;
   }
 
-  await rest.put(Routes.applicationCommands(clientId), { body });
+  await rest.put(Routes.applicationCommands(clientId), { body: commandBody });
   console.log("Registered global /suggest command");
 }
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
-client.once("ready", () => {
+client.once("ready", async () => {
   console.log(`Discord bot logged in as ${client.user?.tag}`);
+
+  const rest = new REST({ version: "10" }).setToken(token);
+  for (const guild of client.guilds.cache.values()) {
+    await registerGuildCommands(rest, guild.id).catch((error) => {
+      console.error(`Could not register /suggest for guild ${guild.id}`, error);
+    });
+  }
+});
+
+client.on("guildCreate", async (guild) => {
+  const rest = new REST({ version: "10" }).setToken(token);
+  await registerGuildCommands(rest, guild.id).catch((error) => {
+    console.error(`Could not register /suggest for new guild ${guild.id}`, error);
+  });
 });
 
 client.on("interactionCreate", async (interaction) => {
