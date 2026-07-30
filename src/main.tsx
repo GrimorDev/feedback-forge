@@ -1178,6 +1178,7 @@ function IntegrationsView({ projectSlug, adminKey }: { projectSlug: string; admi
     reachable: boolean;
     clientId: string | null;
     botName: string | null;
+    error?: string;
   } | null>(null);
   const [githubRepository, setGithubRepository] = useState("");
   const [saveState, setSaveState] = useState<string | null>(null);
@@ -1309,7 +1310,7 @@ function IntegrationsView({ projectSlug, adminKey }: { projectSlug: string; admi
               {discordBotStatus?.reachable
                 ? "Token bota jest poprawny. Jeśli bot jest offline na Discordzie, zrób redeploy stacka i sprawdź kontener discord-bot."
                 : discordBotStatus?.configured
-                  ? "DISCORD_BOT_TOKEN albo DISCORD_CLIENT_ID są ustawione, ale Discord odrzuca token."
+                  ? `DISCORD_BOT_TOKEN albo DISCORD_CLIENT_ID są ustawione, ale Discord odrzuca token${discordBotStatus.error ? ` (${discordBotStatus.error})` : "."}`
                   : "Ustaw DISCORD_BOT_TOKEN i DISCORD_CLIENT_ID w Portainerze, a potem redeploy stacka."}
             </span>
           </div>

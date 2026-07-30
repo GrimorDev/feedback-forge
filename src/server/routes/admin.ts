@@ -30,6 +30,12 @@ function discordBotInviteUrl(clientId: string) {
   return url.toString();
 }
 
+async function discordErrorMessage(response: Response) {
+  const payload = (await response.json().catch(() => null)) as { message?: string; code?: number } | null;
+  const details = payload?.message ? `: ${payload.message}` : "";
+  return `Discord API ${response.status}${details}`;
+}
+
 async function getAdminContext(request: FastifyRequest): Promise<AdminContext> {
   const auth = request.headers.authorization;
   const headerKey = request.headers["x-admin-api-key"];
@@ -205,7 +211,14 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     });
 
     if (!response.ok) {
-      return reply.status(response.status).send({ error: "Could not load Discord channels for this server" });
+      const details = await discordErrorMessage(response);
+      const hint =
+        response.status === 401
+          ? "Bot token is invalid. Paste a fresh Bot Token into DISCORD_BOT_TOKEN and redeploy."
+          : response.status === 403
+            ? "Bot is not on this server or cannot read channels. Add the bot again and check permissions."
+            : "Could not load Discord channels for this server.";
+      return reply.status(response.status).send({ error: `${hint} (${details})` });
     }
 
     const channels = (await response.json()) as Array<{ id: string; name: string; type: number }>;
@@ -234,11 +247,13 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     });
 
     if (!response.ok) {
+      const details = await discordErrorMessage(response);
       return reply.status(200).send({
         configured: true,
         reachable: false,
         clientId: config.discordClientId,
-        botName: null
+        botName: null,
+        error: details
       });
     }
 
